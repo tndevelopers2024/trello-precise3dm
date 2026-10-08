@@ -84,14 +84,9 @@ export const AuthProvider = ({ children }) => {
     setAuthError(null);
   };
 
-  const register = async (name, email, password, role) => {
-    const res = await api.post("/auth/register", { name, email, password, role });
-    localStorage.setItem("token", res.data.token);
-    try {
-      localStorage.setItem("user", JSON.stringify(res.data.user));
-    } catch {}
-    setUser(res.data.user);
-    setAuthError(null);
+  const register = async (name, email, role) => {
+    const res = await api.post("/auth/register", { name, email, role });
+    return res.data;
   };
 
   const logout = useCallback(() => {

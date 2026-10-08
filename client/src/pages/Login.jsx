@@ -6,8 +6,6 @@ import {
   Lock,
   ArrowRight,
   Shield,
-  UserCheck,
-  Sparkles,
   CheckCircle2,
   Boxes,
   Layers,
@@ -25,14 +23,14 @@ export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [activeRoleFill, setActiveRoleFill] = useState("");
 
   const submit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email.trim().toLowerCase(), password);
       toast.success("Welcome back to Precise3DM!", { title: "Signed In" });
       navigate("/");
     } catch (err) {
@@ -42,14 +40,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const fillCredentials = (role, credEmail, credPass, label) => {
-    setEmail(credEmail);
-    setPassword(credPass);
-    setError("");
-    setActiveRoleFill(role);
-    toast.info(`Loaded ${label} credentials`);
   };
 
   return (
@@ -261,83 +251,6 @@ export default function Login() {
                   )}
                 </button>
               </form>
-
-              {/* Quick Demo Credentials Section */}
-              <div className="mt-5 sm:mt-6 pt-4 sm:pt-5 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-2.5">
-                  <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles size={12} className="text-orange-500" />
-                    Quick Test Logins
-                  </span>
-                  <span className="text-[10px] text-orange-700 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-full font-medium">
-                    1-Click Autofill
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
-                  {/* Project Manager Pill */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillCredentials(
-                        "admin",
-                        "admin@workspace.com",
-                        "password123",
-                        "Project Manager (Admin)"
-                      )
-                    }
-                    className={`flex flex-col items-start p-2.5 sm:p-3 rounded-xl border text-left transition-all group touch-manipulation cursor-pointer ${
-                      activeRoleFill === "admin"
-                        ? "bg-orange-50/90 border-orange-500 ring-2 ring-orange-500/30"
-                        : "bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-orange-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-0.5 sm:mb-1">
-                      <span className="text-xs font-semibold text-slate-800 group-hover:text-orange-600 flex items-center gap-1.5">
-                        <Shield size={13} className="text-orange-500" />
-                        Project Manager
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-700 font-mono font-bold">
-                        ADMIN
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-slate-500 font-mono truncate w-full">
-                      admin@workspace.com
-                    </span>
-                  </button>
-
-                  {/* Employee Pill */}
-                  <button
-                    type="button"
-                    onClick={() =>
-                      fillCredentials(
-                        "member",
-                        "member@workspace.com",
-                        "password123",
-                        "Site Engineer (Member)"
-                      )
-                    }
-                    className={`flex flex-col items-start p-2.5 sm:p-3 rounded-xl border text-left transition-all group touch-manipulation cursor-pointer ${
-                      activeRoleFill === "member"
-                        ? "bg-orange-50/90 border-orange-500 ring-2 ring-orange-500/30"
-                        : "bg-slate-50 hover:bg-slate-100 border-slate-200 hover:border-orange-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between w-full mb-0.5 sm:mb-1">
-                      <span className="text-xs font-semibold text-slate-800 group-hover:text-orange-600 flex items-center gap-1.5">
-                        <UserCheck size={13} className="text-amber-500" />
-                        Employee
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.5 rounded-md bg-slate-200 text-slate-700 font-mono font-bold">
-                        MEMBER
-                      </span>
-                    </div>
-                    <span className="text-[11px] text-slate-500 font-mono truncate w-full">
-                      member@workspace.com
-                    </span>
-                  </button>
-                </div>
-              </div>
             </div>
 
             {/* Bottom Signup Link & Footer Note */}

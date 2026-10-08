@@ -148,7 +148,7 @@ export default function ActivateAccount() {
           {verifying ? (
             <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
               <Loader2 size={32} className="animate-spin text-orange-600" />
-              <p className="text-sm font-semibold text-slate-700">Verifying invitation link…</p>
+              <p className="text-sm font-semibold text-slate-700">Verifying activation link…</p>
             </div>
           ) : !tokenValid ? (
             <div className="text-center py-6 space-y-4">
@@ -156,7 +156,7 @@ export default function ActivateAccount() {
                 <AlertCircle size={24} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">Invitation Link Invalid</h3>
+                <h3 className="text-base font-bold text-slate-900">Activation Link Invalid</h3>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1.5 leading-relaxed">
                   {tokenError}
                 </p>

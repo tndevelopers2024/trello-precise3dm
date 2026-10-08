@@ -4,6 +4,7 @@ import User from "../models/User.js";
 import Board from "../models/Board.js";
 import {
   sendInvitationEmail,
+  sendActivationEmail,
   sendPasswordResetEmail,
   getSentEmails,
   clearSentEmails,
@@ -29,32 +30,55 @@ const getRandomAvatarColor = () => {
 // POST /api/auth/register
 export const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ message: "Name, email and password are required" });
+    const { name, email, role } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ message: "Name and email are required" });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters long" });
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanName = name.trim();
+    const userRole = role === "admin" ? "admin" : "member";
+
+    let user = await User.findOne({ email: cleanEmail });
+    if (user) {
+      if (user.status === "active") {
+        return res.status(400).json({ message: "Email already registered" });
+      }
+      // Re-registering unactivated user: update details and generate fresh activation token
+      user.name = cleanName;
+      user.role = userRole;
+      user.status = "pending";
+    } else {
+      user = new User({
+        name: cleanName,
+        email: cleanEmail,
+        role: userRole,
+        status: "pending",
+        avatarColor: getRandomAvatarColor(),
+      });
     }
 
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
-    if (existing) {
-      return res.status(400).json({ message: "Email already registered" });
-    }
+    const rawToken = user.generateActivationToken();
+    await user.save();
 
-    const user = await User.create({
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
-      password,
-      role: role === "admin" ? "admin" : "member",
-      status: "active",
-      avatarColor: getRandomAvatarColor(),
+    // Send account activation email with secure link to set password
+    await sendActivationEmail({
+      to: user.email,
+      name: user.name,
+      token: rawToken,
+      role: user.role,
     });
 
     res.status(201).json({
-      user: user.toSafeObject(),
-      token: signToken(user._id),
+      message:
+        "Your account has been created successfully. Please check your email to activate your account and set your password.",
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+      },
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -77,7 +101,7 @@ export const login = async (req, res) => {
     if (user.status === "invited" || user.status === "pending" || !user.password) {
       return res.status(403).json({
         message:
-          "This account has not been activated yet. Please check your invitation email to set your password and activate your account.",
+          "This account has not been activated yet. Please check your email to activate your account and set your password.",
         status: user.status,
       });
     }
@@ -272,13 +296,24 @@ export const forgotPassword = async (req, res) => {
       // Re-send activation email if user hasn't activated yet
       const rawToken = user.generateActivationToken();
       await user.save();
-      await sendInvitationEmail({
-        to: user.email,
-        name: user.name,
-        token: rawToken,
-        inviterName: "Precise3DM Team",
-        role: user.role,
-      });
+
+      if (user.status === "pending") {
+        await sendActivationEmail({
+          to: user.email,
+          name: user.name,
+          token: rawToken,
+          role: user.role,
+        });
+      } else {
+        await sendInvitationEmail({
+          to: user.email,
+          name: user.name,
+          token: rawToken,
+          inviterName: "Precise3DM Team",
+          role: user.role,
+        });
+      }
+
       return res.json({
         message: "Your account is pending activation. We have sent an activation link to your email.",
       });

@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Loader2,
   Mail,
-  Lock,
   User,
   Boxes,
   ArrowRight,
@@ -12,23 +11,29 @@ import {
   Shield,
   Layers,
   Cpu,
+  MailCheck,
+  Sparkles,
+  RotateCcw,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
-import PasswordInput from "../components/PasswordInput.jsx";
 
 export default function Register() {
   const { register } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "member" });
+  const [form, setForm] = useState({ name: "", email: "", role: "member" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [submittedSuccess, setSubmittedSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState("");
+  const [submittedRole, setSubmittedRole] = useState("member");
 
   const update = (key) => (e) => setForm({ ...form, [key]: e.target.value });
 
   const submit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setError("");
 
     if (!form.name.trim()) {
@@ -41,16 +46,20 @@ export default function Register() {
       return;
     }
 
-    if (form.password.length < 6) {
-      setError("Password must be at least 6 characters long");
-      return;
-    }
-
     setLoading(true);
     try {
-      await register(form.name.trim(), form.email.trim().toLowerCase(), form.password, form.role);
-      toast.success("Account created successfully!", { title: "Welcome to Precise3DM" });
-      navigate("/");
+      const email = form.email.trim().toLowerCase();
+      const name = form.name.trim();
+      const role = form.role;
+
+      await register(name, email, role);
+      setSubmittedEmail(email);
+      setSubmittedRole(role);
+      setSubmittedSuccess(true);
+      toast.success(
+        "Your account has been created successfully. Please check your email to activate your account and set your password.",
+        { title: "Account Created" }
+      );
     } catch (err) {
       const msg = err.response?.data?.message || "Couldn't create your account. Please try again.";
       setError(msg);
@@ -58,6 +67,12 @@ export default function Register() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleReset = () => {
+    setSubmittedSuccess(false);
+    setError("");
+    setForm({ name: "", email: "", role: "member" });
   };
 
   return (
@@ -130,6 +145,12 @@ export default function Register() {
                   </div>
                   <span>Real-time Task Boards & Sprint Sync</span>
                 </div>
+                <div className="flex items-center gap-2.5 text-xs sm:text-sm text-slate-700 font-medium">
+                  <div className="w-5 h-5 rounded-full bg-sky-100 border border-sky-300/60 flex items-center justify-center text-sky-600 shrink-0">
+                    <Shield size={13} />
+                  </div>
+                  <span>Secure Email-based Account Activation</span>
+                </div>
               </div>
             </div>
 
@@ -171,184 +192,243 @@ export default function Register() {
                 </div>
 
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  Create your account
+                  {submittedSuccess ? "Check your email" : "Create your account"}
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5 max-w-xs">
-                  Get started with precise3dm engineering project workspace
+                  {submittedSuccess
+                    ? "Activate your account to get started"
+                    : "Get started with precise3dm engineering project workspace"}
                 </p>
               </div>
 
-              {/* Form Title on Desktop */}
-              <div className="hidden lg:block mb-6">
-                <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
-                  Register
-                </h2>
-                <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Enter your details to create your workspace account
-                </p>
-              </div>
-
-              {/* Error Message */}
-              {error && (
-                <div className="mb-4 flex items-start gap-2.5 p-3 text-xs sm:text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl animate-in fade-in duration-150">
-                  <span className="font-semibold text-rose-600 shrink-0">Error:</span>
-                  <span>{error}</span>
-                </div>
-              )}
-
-              {/* Form Inputs */}
-              <form onSubmit={submit} className="space-y-3 sm:space-y-3.5">
-                <div>
-                  <label
-                    htmlFor="register-name"
-                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
-                  >
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center justify-center">
-                      <User size={16} />
+              {submittedSuccess ? (
+                /* ================= SUCCESS CONFIRMATION STATE ================= */
+                <div className="py-3 sm:py-6 space-y-5 animate-in fade-in zoom-in-95 duration-200">
+                  {/* Top Success Badge */}
+                  <div className="flex flex-col items-center text-center space-y-3">
+                    <div className="relative">
+                      <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-3xl bg-emerald-50 border-2 border-emerald-200 text-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/10">
+                        <MailCheck size={36} className="text-emerald-600" />
+                      </div>
+                      <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-sm">
+                        <CheckCircle2 size={14} />
+                      </div>
                     </div>
-                    <input
-                      id="register-name"
-                      type="text"
-                      required
-                      disabled={loading}
-                      value={form.name}
-                      onChange={update("name")}
-                      placeholder="e.g. Sarah Jenkins"
-                      className="w-full rounded-xl bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-300 pl-10 pr-3.5 py-2.5 sm:py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50 transition-all shadow-xs"
-                    />
-                  </div>
-                </div>
 
-                <div>
-                  <label
-                    htmlFor="register-email"
-                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
-                  >
-                    Email Address
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center justify-center">
-                      <Mail size={16} />
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase bg-emerald-500/10 text-emerald-700 border border-emerald-500/20">
+                      <Sparkles size={12} className="text-emerald-600" />
+                      <span>Account Created Successfully</span>
                     </div>
-                    <input
-                      id="register-email"
-                      type="email"
-                      required
-                      disabled={loading}
-                      value={form.email}
-                      onChange={update("email")}
-                      placeholder="you@precise3dm.com"
-                      className="w-full rounded-xl bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-300 pl-10 pr-3.5 py-2.5 sm:py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50 transition-all shadow-xs"
-                    />
+
+                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                      Check Your Email
+                    </h2>
                   </div>
-                </div>
 
-                <div>
-                  <label
-                    htmlFor="register-password"
-                    className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
-                  >
-                    Password
-                  </label>
-                  <PasswordInput
-                    id="register-password"
-                    required
-                    minLength={6}
-                    disabled={loading}
-                    value={form.password}
-                    onChange={update("password")}
-                    placeholder="At least 6 characters"
-                    autoComplete="new-password"
-                    leftIcon={<Lock size={16} />}
-                    className="bg-slate-50 hover:bg-slate-100/50 focus:bg-white !border-slate-300 !text-slate-900 placeholder:!text-slate-400 focus:!ring-orange-500/30 focus:!border-orange-500"
-                  />
-                </div>
+                  {/* Clear Success Message Prompt */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-orange-50/80 via-amber-50/40 to-slate-50 border border-orange-200/80 shadow-xs space-y-3">
+                    <p className="text-sm sm:text-base font-semibold text-slate-900 leading-relaxed text-center">
+                      Your account has been created successfully. Please check your email to activate your account and set your password.
+                    </p>
 
-                {/* Role Selector Tiles */}
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-                    Workspace Role
-                  </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
-                    {/* Member / Employee Option */}
+                    <div className="pt-2 border-t border-orange-200/60 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-600">
+                      <div className="flex items-center gap-2 truncate max-w-full">
+                        <Mail size={14} className="text-orange-600 shrink-0" />
+                        <span className="font-mono font-medium text-slate-800 truncate">{submittedEmail}</span>
+                      </div>
+                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-orange-100 text-orange-700 shrink-0">
+                        {submittedRole === "admin" ? "PROJECT MANAGER" : "MEMBER"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Security Explanatory Note */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
+                    <p className="font-semibold text-slate-700 flex items-center gap-1.5">
+                      <Shield size={14} className="text-orange-500" />
+                      <span>Secure One-Time Activation</span>
+                    </p>
+                    <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">
+                      We've sent an activation link containing an <strong>"Activate Account / Set Password"</strong> button. The link is valid for 24 hours and allows you to securely choose your own password.
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2.5 pt-2">
                     <button
                       type="button"
-                      onClick={() => setForm({ ...form, role: "member" })}
-                      disabled={loading}
-                      className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
-                        form.role === "member"
-                          ? "bg-orange-50/90 border-orange-500 ring-2 ring-orange-500/30 shadow-xs"
-                          : "bg-slate-50 hover:bg-slate-100/80 border-slate-200 hover:border-orange-300"
-                      }`}
+                      onClick={() => navigate("/login")}
+                      className="w-full bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 hover:from-orange-700 hover:to-amber-700 active:from-orange-800 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all duration-200 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 cursor-pointer"
                     >
-                      <div className="flex items-center justify-between w-full mb-1">
-                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <UserCheck
-                            size={14}
-                            className={form.role === "member" ? "text-orange-600" : "text-slate-400"}
-                          />
-                          Employee
-                        </span>
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
-                          MEMBER
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 leading-tight">
-                        Work on deliverables & task lists
-                      </span>
+                      <span>Proceed to Sign In</span>
+                      <ArrowRight size={16} />
                     </button>
 
-                    {/* Admin / Project Manager Option */}
                     <button
                       type="button"
-                      onClick={() => setForm({ ...form, role: "admin" })}
-                      disabled={loading}
-                      className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
-                        form.role === "admin"
-                          ? "bg-orange-50/90 border-orange-500 ring-2 ring-orange-500/30 shadow-xs"
-                          : "bg-slate-50 hover:bg-slate-100/80 border-slate-200 hover:border-orange-300"
-                      }`}
+                      onClick={handleReset}
+                      className="w-full bg-slate-100 hover:bg-slate-200/80 active:bg-slate-300/80 text-slate-700 text-xs font-semibold rounded-xl py-2.5 px-4 transition-all duration-150 flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <div className="flex items-center justify-between w-full mb-1">
-                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <Shield
-                            size={14}
-                            className={form.role === "admin" ? "text-orange-600" : "text-slate-400"}
-                          />
-                          Project Manager
-                        </span>
-                        <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
-                          ADMIN
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-slate-500 leading-tight">
-                        Manage projects, boards & team
-                      </span>
+                      <RotateCcw size={13} />
+                      <span>Register another account</span>
                     </button>
                   </div>
                 </div>
+              ) : (
+                /* ================= REGISTRATION FORM STATE ================= */
+                <>
+                  {/* Form Title on Desktop */}
+                  <div className="hidden lg:block mb-6">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                      Register
+                    </h2>
+                    <p className="text-xs sm:text-sm text-slate-500 mt-1">
+                      Enter your details to create your workspace account
+                    </p>
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full mt-2 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 hover:from-orange-700 hover:to-amber-700 active:from-orange-800 active:to-amber-800 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 size={18} className="animate-spin text-white" />
-                      <span>Creating account…</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Create Account</span>
-                      <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-                    </>
+                  {/* Error Message */}
+                  {error && (
+                    <div className="mb-4 flex items-start gap-2.5 p-3 text-xs sm:text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl animate-in fade-in duration-150">
+                      <span className="font-semibold text-rose-600 shrink-0">Error:</span>
+                      <span>{error}</span>
+                    </div>
                   )}
-                </button>
-              </form>
+
+                  {/* Form Inputs */}
+                  <form onSubmit={submit} className="space-y-3.5 sm:space-y-4">
+                    <div>
+                      <label
+                        htmlFor="register-name"
+                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      >
+                        Full Name
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center justify-center">
+                          <User size={16} />
+                        </div>
+                        <input
+                          id="register-name"
+                          type="text"
+                          required
+                          disabled={loading}
+                          value={form.name}
+                          onChange={update("name")}
+                          placeholder="e.g. Sarah Jenkins"
+                          className="w-full rounded-xl bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-300 pl-10 pr-3.5 py-2.5 sm:py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50 transition-all shadow-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="register-email"
+                        className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5"
+                      >
+                        Work Email Address
+                      </label>
+                      <div className="relative">
+                        <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none flex items-center justify-center">
+                          <Mail size={16} />
+                        </div>
+                        <input
+                          id="register-email"
+                          type="email"
+                          required
+                          disabled={loading}
+                          value={form.email}
+                          onChange={update("email")}
+                          placeholder="you@precise3dm.com"
+                          className="w-full rounded-xl bg-slate-50 hover:bg-slate-100/50 focus:bg-white border border-slate-300 pl-10 pr-3.5 py-2.5 sm:py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500/30 focus:border-orange-500 disabled:opacity-50 transition-all shadow-xs"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Role Selector Tiles */}
+                    <div>
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                        Workspace Role
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
+                        {/* Member / Employee Option */}
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, role: "member" })}
+                          disabled={loading}
+                          className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                            form.role === "member"
+                              ? "bg-orange-50/90 border-orange-500 ring-2 ring-orange-500/30 shadow-xs"
+                              : "bg-slate-50 hover:bg-slate-100/80 border-slate-200 hover:border-orange-300"
+                          } ${loading ? "opacity-50 pointer-events-none" : ""}`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-1">
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <UserCheck
+                                size={14}
+                                className={form.role === "member" ? "text-orange-600" : "text-slate-400"}
+                              />
+                              Employee
+                            </span>
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-700">
+                              MEMBER
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 leading-tight">
+                            Work on deliverables & task lists
+                          </span>
+                        </button>
+
+                        {/* Admin / Project Manager Option */}
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, role: "admin" })}
+                          disabled={loading}
+                          className={`p-2.5 sm:p-3 rounded-xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                            form.role === "admin"
+                              ? "bg-orange-50/90 border-orange-500 ring-2 ring-orange-500/30 shadow-xs"
+                              : "bg-slate-50 hover:bg-slate-100/80 border-slate-200 hover:border-orange-300"
+                          } ${loading ? "opacity-50 pointer-events-none" : ""}`}
+                        >
+                          <div className="flex items-center justify-between w-full mb-1">
+                            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                              <Shield
+                                size={14}
+                                className={form.role === "admin" ? "text-orange-600" : "text-slate-400"}
+                              />
+                              Project Manager
+                            </span>
+                            <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">
+                              ADMIN
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 leading-tight">
+                            Manage projects, boards & team
+                          </span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="w-full mt-2 bg-gradient-to-r from-orange-600 via-orange-500 to-amber-600 hover:from-orange-700 hover:to-amber-700 active:from-orange-800 active:to-amber-800 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all duration-200 disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-orange-500/25 hover:shadow-orange-500/35 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    >
+                      {loading ? (
+                        <>
+                          <Loader2 size={18} className="animate-spin text-white" />
+                          <span>Creating account…</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Create Account</span>
+                          <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                </>
+              )}
             </div>
 
             {/* Bottom Sign In Link & Footer Note */}
@@ -368,7 +448,7 @@ export default function Register() {
                   <CheckCircle2 size={12} className="text-emerald-500" /> Secure 3D Workspace
                 </span>
                 <span>•</span>
-                <span>Instant Setup</span>
+                <span>Email Activation</span>
               </div>
             </div>
           </div>
