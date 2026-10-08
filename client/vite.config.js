@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  envPrefix: ["VITE_", "API_", "SOCKET_"],
   server: { port: 5173 },
   build: {
     rollupOptions: {

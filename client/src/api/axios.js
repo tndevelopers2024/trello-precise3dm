@@ -15,7 +15,7 @@ export function onNetworkActivityChange(callback) {
 }
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:5000/api",
+  baseURL: import.meta.env.API_URL || import.meta.env.VITE_API_URL || "http://localhost:5000/api",
   timeout: 60000, // 60s timeout to accommodate free-tier cold starts
 });
 

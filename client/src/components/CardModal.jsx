@@ -1944,9 +1944,9 @@ export default function CardModal({
                     ).map((att) => {
                       const fileInfo = getFileTypeInfo(att);
                       const displayName = att.label || att.originalName || att.url;
-                      const isServerFile = att.url?.startsWith("/uploads");
-                      const apiBase = import.meta.env.VITE_API_URL
-                        ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, "")
+                      const rawApiUrl = import.meta.env.API_URL || import.meta.env.VITE_API_URL;
+                      const apiBase = rawApiUrl
+                        ? rawApiUrl.replace(/\/api\/?$/, "")
                         : "http://localhost:5000";
                       const fullUrl = isServerFile ? `${apiBase}${att.url}` : att.url;
 

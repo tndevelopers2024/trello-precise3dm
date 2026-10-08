@@ -10,7 +10,10 @@ export const useSocket = (boardId, handlers = {}) => {
   useEffect(() => {
     if (!boardId) return;
 
-    const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+    const socketUrl =
+      import.meta.env.SOCKET_URL ||
+      import.meta.env.VITE_SOCKET_URL ||
+      "http://localhost:5000";
 
     const socket = io(socketUrl, {
       transports: ["websocket", "polling"],
