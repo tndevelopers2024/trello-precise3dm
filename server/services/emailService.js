@@ -40,7 +40,28 @@ const createTransporter = async () => {
 };
 
 const getFromAddress = () => {
-  return process.env.SMTP_FROM || process.env.EMAIL_FROM || '"Precise3DM Workspace" <noreply@precise3dm.com>';
+  const rawFrom = (process.env.SMTP_FROM || process.env.EMAIL_FROM || "").trim();
+  const userEmail = (process.env.SMTP_USER || "").trim();
+
+  if (rawFrom) {
+    // Check if format is: "Sender Name" <email@example.com> or Name <email@example.com>
+    const match = rawFrom.match(/^(?:"?([^"<]+)"?\s*)?<([^>]+)>$/);
+    if (match) {
+      const name = (match[1] || "Precise3DM Workspace").trim();
+      const address = match[2].trim();
+      return { name, address };
+    }
+    // If it's a plain email address
+    if (rawFrom.includes("@")) {
+      return { name: "Precise3DM Workspace", address: rawFrom.replace(/["']/g, "").trim() };
+    }
+  }
+
+  if (userEmail && userEmail.includes("@")) {
+    return { name: "Precise3DM Workspace", address: userEmail };
+  }
+
+  return { name: "Precise3DM Workspace", address: "noreply@precise3dm.com" };
 };
 
 const getClientUrl = () => {
