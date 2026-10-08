@@ -11,11 +11,13 @@ import {
   Shield,
   Layers,
   Sparkles,
+  KeyRound,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import { useBoardHeader } from "../context/BoardHeaderContext.jsx";
 import ConfirmationModal from "./ConfirmationModal.jsx";
+import ChangePasswordModal from "./ChangePasswordModal.jsx";
 import FilterPopover from "./ui/FilterPopover.jsx";
 
 export default function Navbar() {
@@ -27,6 +29,7 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [showSignoutModal, setShowSignoutModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const profileMenuRef = useRef(null);
   const mobileMenuRef = useRef(null);
@@ -301,6 +304,19 @@ export default function Navbar() {
                     <span>My Assigned Tasks</span>
                   </Link>
 
+                  {/* Change password button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileDropdownOpen(false);
+                      setShowChangePasswordModal(true);
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-ink hover:bg-surface-2 transition-colors text-left cursor-pointer"
+                  >
+                    <KeyRound size={15} className="text-muted" />
+                    <span>Change password</span>
+                  </button>
+
                   <div className="h-px bg-line/60 my-1" />
 
                   {/* Sign out button */}
@@ -440,6 +456,17 @@ export default function Navbar() {
                 <CheckSquare size={16} />
                 <span>My tasks</span>
               </Link>
+              <button
+                type="button"
+                onClick={() => {
+                  closeMobileMenu();
+                  setShowChangePasswordModal(true);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium text-muted hover:text-ink hover:bg-surface-2 transition-colors text-left cursor-pointer"
+              >
+                <KeyRound size={16} />
+                <span>Change password</span>
+              </button>
             </nav>
 
             {/* Mobile Logout Button */}
@@ -459,6 +486,10 @@ export default function Navbar() {
           </div>
         )}
       </header>
+
+      {showChangePasswordModal && (
+        <ChangePasswordModal onClose={() => setShowChangePasswordModal(false)} />
+      )}
 
       <ConfirmationModal
         isOpen={showSignoutModal}

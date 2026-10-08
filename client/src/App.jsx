@@ -17,6 +17,9 @@ const Register = lazy(() => import("./pages/Register.jsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const BoardView = lazy(() => import("./pages/BoardView.jsx"));
 const MyTasks = lazy(() => import("./pages/MyTasks.jsx"));
+const ActivateAccount = lazy(() => import("./pages/ActivateAccount.jsx"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
+const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
 
 const Private = ({ children }) => {
   const { user, loading } = useAuth();
@@ -50,6 +53,10 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />
                 <Route path="/register" element={user ? <Navigate to="/" /> : <Register />} />
+                <Route path="/activate" element={<ActivateAccount />} />
+                <Route path="/set-password" element={<ActivateAccount />} />
+                <Route path="/forgot-password" element={user ? <Navigate to="/" /> : <ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/" element={<Private><Dashboard /></Private>} />
                 <Route path="/my-tasks" element={<Private><MyTasks /></Private>} />
                 <Route path="/boards/:id" element={<Private><BoardView /></Private>} />

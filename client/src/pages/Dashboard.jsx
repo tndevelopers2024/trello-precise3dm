@@ -13,12 +13,14 @@ import {
   CheckCircle2,
   X,
   LayoutGrid,
+  UserPlus,
 } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useProjects } from "../context/ProjectsContext.jsx";
 import { boardBannerGradient } from "../utils/color.js";
 import NewProjectModal from "../components/NewProjectModal.jsx";
+import InviteMemberModal from "../components/InviteMemberModal.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
 import DashboardSkeleton from "../components/ui/DashboardSkeleton.jsx";
 
@@ -29,6 +31,7 @@ export default function Dashboard() {
   const [filters, setFilters] = useState({ members: [] });
   const [searchQuery, setSearchQuery] = useState("");
   const [showNewProject, setShowNewProject] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   // Fetch secondary user directory data in the background
   useEffect(() => {
@@ -150,14 +153,26 @@ export default function Dashboard() {
           />
 
           {user?.role === "admin" && (
-            <button
-              type="button"
-              onClick={() => setShowNewProject(true)}
-              className="btn-press bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:from-orange-700 active:to-orange-800 text-white text-xs sm:text-sm font-semibold rounded-xl px-4 py-2.5 transition-all shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-orange-500/40 touch-manipulation flex items-center gap-2 cursor-pointer"
-            >
-              <Plus size={16} className="shrink-0" />
-              <span>New Project</span>
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => setShowInviteModal(true)}
+                className="btn-press bg-surface hover:bg-orange-50/60 hover:border-orange-300 text-slate-700 hover:text-orange-700 border border-line text-xs sm:text-sm font-semibold rounded-xl px-3.5 py-2.5 transition-all shadow-xs flex items-center gap-1.5 cursor-pointer select-none"
+                title="Invite new employee or manager by email"
+              >
+                <UserPlus size={15} className="text-orange-600 shrink-0" />
+                <span>Invite Member</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowNewProject(true)}
+                className="btn-press bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-amber-700 active:from-orange-700 active:to-orange-800 text-white text-xs sm:text-sm font-semibold rounded-xl px-4 py-2.5 transition-all shadow-md shadow-orange-500/20 hover:shadow-orange-500/30 hover:-translate-y-0.5 active:translate-y-0 focus:outline-none focus:ring-2 focus:ring-orange-500/40 touch-manipulation flex items-center gap-2 cursor-pointer"
+              >
+                <Plus size={16} className="shrink-0" />
+                <span>New Project</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -350,6 +365,15 @@ export default function Dashboard() {
         <NewProjectModal
           onClose={() => setShowNewProject(false)}
           onCreated={() => fetchBoards(true)}
+        />
+      )}
+
+      {showInviteModal && (
+        <InviteMemberModal
+          onClose={() => setShowInviteModal(false)}
+          onInvited={(newUser) => {
+            setAllUsers((prev) => [...prev, newUser]);
+          }}
         />
       )}
     </div>

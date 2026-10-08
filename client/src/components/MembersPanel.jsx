@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { X, Plus, Crown, ShieldCheck, Loader2 } from "lucide-react";
+import { X, Plus, Crown, ShieldCheck, Loader2, UserPlus } from "lucide-react";
 import api from "../api/axios.js";
 import Select from "./ui/Select.jsx";
 import ConfirmationModal from "./ConfirmationModal.jsx";
+import InviteMemberModal from "./InviteMemberModal.jsx";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 
@@ -17,6 +18,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
   const [removeTarget, setRemoveTarget] = useState(null);
   const [isUpdatingRole, setIsUpdatingRole] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   useEffect(() => {
     api.get("/auth/users").then((res) => setAllUsers(res.data));
@@ -281,6 +283,21 @@ export default function MembersPanel({ board, onClose, onChanged }) {
             </button>
           </div>
         )}
+
+        {/* Invite by email option for managers */}
+        {isCurrentUserBoardManager && (
+          <div className="pt-3 flex items-center justify-between">
+            <span className="text-xs text-muted">Need someone not listed?</span>
+            <button
+              type="button"
+              onClick={() => setShowInviteModal(true)}
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <UserPlus size={13} />
+              <span>Invite new member by email</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Confirmation modal for demoting a manager */}
@@ -306,6 +323,22 @@ export default function MembersPanel({ board, onClose, onChanged }) {
         isDestructive={true}
         loading={isRemoving}
       />
+
+      {/* Invite Member Modal */}
+      {showInviteModal && (
+        <InviteMemberModal
+          defaultBoardId={board._id}
+          onClose={() => setShowInviteModal(false)}
+          onInvited={async () => {
+            const [usersRes, boardRes] = await Promise.all([
+              api.get("/auth/users"),
+              api.get(`/boards/${board._id}`),
+            ]);
+            setAllUsers(usersRes.data);
+            if (boardRes.data) onChanged(boardRes.data);
+          }}
+        />
+      )}
     </div>
   );
 
