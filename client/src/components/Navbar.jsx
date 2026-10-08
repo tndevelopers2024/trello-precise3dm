@@ -195,35 +195,6 @@ export default function Navbar() {
                   />
                 )}
 
-                {/* Team Avatars Cluster */}
-                {members.length > 0 && (
-                  <div
-                    className="flex items-center bg-surface-2/70 border border-line/70 px-2 py-1 rounded-xl gap-1"
-                    title={`${members.length} team member${members.length === 1 ? "" : "s"}`}
-                  >
-                    <div className="flex items-center -space-x-1.5 hover:space-x-0.5 transition-all duration-200">
-                      {visibleMembers.map((m) => (
-                        <span
-                          key={m.user._id || m._id}
-                          title={`${m.user.name} (${m.role === "manager" ? "Manager" : "Member"})`}
-                          className="w-6.5 h-6.5 rounded-full border-2 border-surface flex items-center justify-center text-[10px] text-white font-bold shadow-xs transition-transform hover:scale-110 hover:z-10 cursor-default"
-                          style={{ backgroundColor: m.user.avatarColor || "#EA580C" }}
-                        >
-                          {m.user.name?.[0]?.toUpperCase()}
-                        </span>
-                      ))}
-                      {extraMembersCount > 0 && (
-                        <span
-                          title={`${extraMembersCount} more members`}
-                          className="w-6.5 h-6.5 rounded-full border-2 border-surface bg-surface-3 flex items-center justify-center text-[9px] text-ink font-bold shadow-xs cursor-default"
-                        >
-                          +{extraMembersCount}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
                 {/* Manage Team Button */}
                 {boardHeaderData.isManager && (
                   <button
