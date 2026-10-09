@@ -32,7 +32,14 @@ export default function BoardView() {
 
   const isManager =
     user?.role === "admin" ||
-    board?.members?.some((m) => m.user._id === user?._id && m.role === "manager");
+    user?.role === "superadmin" ||
+    board?.members?.some(
+      (m) =>
+        m?.user &&
+        (m.user._id ? m.user._id.toString() : String(m.user)) ===
+          (user?._id ? user._id.toString() : "") &&
+        m.role === "manager"
+    );
 
   const activeCardData = useMemo(() => {
     if (!activeCard) return null;
@@ -286,13 +293,15 @@ export default function BoardView() {
     {
       id: "members",
       title: "Members",
-      options: (board?.members || []).map((m) => ({
-        value: m.user._id,
-        label: m.user.name,
-        badge: m.role === "manager" ? "Manager" : undefined,
-        avatarInitial: m.user.name?.[0]?.toUpperCase(),
-        avatarColor: m.user.avatarColor || "#0C66E4",
-      })),
+      options: (board?.members || [])
+        .filter((m) => m && m.user)
+        .map((m) => ({
+          value: m.user._id || m.user,
+          label: m.user.name || "Member",
+          badge: m.role === "manager" ? "Manager" : undefined,
+          avatarInitial: (m.user.name?.[0] || "U").toUpperCase(),
+          avatarColor: m.user.avatarColor || "#0C66E4",
+        })),
     },
     {
       id: "priority",

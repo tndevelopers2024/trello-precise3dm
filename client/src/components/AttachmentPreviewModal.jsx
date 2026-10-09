@@ -140,7 +140,13 @@ export default function AttachmentPreviewModal({ isOpen, onClose, attachment }) 
   const fileInfo = getFileTypeInfo(attachment);
   const rawApiUrl = import.meta.env.API_URL || import.meta.env.VITE_API_URL;
   const apiBase = rawApiUrl ? rawApiUrl.replace(/\/api\/?$/, "") : "http://localhost:5000";
-  const fullUrl = isServerFile ? `${apiBase}${attachment.url}` : attachment?.url;
+  const isServerFile =
+    attachment?.type === "file" || Boolean(attachment?.url && attachment.url.startsWith("/"));
+  const fullUrl = attachment?.url
+    ? isServerFile
+      ? `${apiBase}${attachment.url}`
+      : attachment.url
+    : "";
 
   // Escape key handler
   useEffect(() => {

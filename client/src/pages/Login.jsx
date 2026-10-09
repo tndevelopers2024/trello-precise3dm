@@ -10,6 +10,9 @@ import {
   Boxes,
   Layers,
   Cpu,
+  Clock,
+  XCircle,
+  AlertTriangle,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
@@ -22,21 +25,41 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [approvalStatus, setApprovalStatus] = useState(null); // 'pending' | 'rejected' | null
+  const [rejectionReason, setRejectionReason] = useState("");
   const [loading, setLoading] = useState(false);
 
   const submit = async (e) => {
     e.preventDefault();
     if (loading) return;
     setError("");
+    setApprovalStatus(null);
+    setRejectionReason("");
     setLoading(true);
     try {
       await login(email.trim().toLowerCase(), password);
       toast.success("Welcome back to Precise3DM!", { title: "Signed In" });
       navigate("/");
     } catch (err) {
-      const msg = err.response?.data?.message || "Couldn't sign in. Please verify your credentials.";
+      const data = err.response?.data;
+      const status = data?.status;
+      const msg = data?.message || "Couldn't sign in. Please verify your credentials.";
       setError(msg);
-      toast.error(msg, { title: "Sign in failed" });
+
+      if (status === "pending" || msg.toLowerCase().includes("pending approval")) {
+        setApprovalStatus("pending");
+        toast.warning("Your account is pending Super Admin approval.", {
+          title: "Pending Approval",
+        });
+      } else if (status === "rejected" || msg.toLowerCase().includes("rejected")) {
+        setApprovalStatus("rejected");
+        setRejectionReason(data?.reason || "");
+        toast.error("Your account has been rejected by the administrator.", {
+          title: "Access Denied",
+        });
+      } else {
+        toast.error(msg, { title: "Sign in failed" });
+      }
     } finally {
       setLoading(false);
     }
@@ -170,13 +193,63 @@ export default function Login() {
                 </p>
               </div>
 
-              {/* Error Message */}
-              {error && (
+              {/* Pending Approval Notice */}
+              {approvalStatus === "pending" ? (
+                <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-amber-50/90 border border-amber-300/80 text-amber-950 shadow-xs animate-in fade-in duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                      <Clock size={17} />
+                    </div>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-xs sm:text-sm font-bold text-amber-950 tracking-tight">
+                          Account Pending Approval
+                        </h3>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300/70">
+                          PENDING
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-900 leading-relaxed font-medium">
+                        {error}
+                      </p>
+                      <p className="text-[11px] text-amber-800/80 leading-relaxed pt-0.5">
+                        Your account requires verification by the Super Admin before access is permitted. You will be able to log in once your account has been reviewed.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : approvalStatus === "rejected" ? (
+                <div className="mb-4 p-3.5 sm:p-4 rounded-2xl bg-rose-50/90 border border-rose-300/80 text-rose-950 shadow-xs animate-in fade-in duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-rose-100 border border-rose-300 text-rose-700 flex items-center justify-center shrink-0 mt-0.5 shadow-xs">
+                      <XCircle size={17} />
+                    </div>
+                    <div className="space-y-1 min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-xs sm:text-sm font-bold text-rose-950 tracking-tight">
+                          Registration Not Approved
+                        </h3>
+                        <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-rose-200/80 text-rose-900 border border-rose-300/70">
+                          REJECTED
+                        </span>
+                      </div>
+                      <p className="text-xs text-rose-900 leading-relaxed font-medium">
+                        {error}
+                      </p>
+                      {rejectionReason ? (
+                        <div className="mt-1.5 p-2 bg-white/80 rounded-xl border border-rose-200 text-[11px] text-rose-900 font-mono">
+                          <span className="font-bold">Reason:</span> {rejectionReason}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              ) : error ? (
                 <div className="mb-4 flex items-start gap-2.5 p-3 text-xs sm:text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-xl animate-in fade-in duration-150">
                   <span className="font-semibold text-rose-600 shrink-0">Error:</span>
                   <span>{error}</span>
                 </div>
-              )}
+              ) : null}
 
               {/* Form Inputs */}
               <form onSubmit={submit} className="space-y-3.5 sm:space-y-4">

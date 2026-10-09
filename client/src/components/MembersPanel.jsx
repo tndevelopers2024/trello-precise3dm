@@ -26,13 +26,22 @@ export default function MembersPanel({ board, onClose, onChanged }) {
 
   const isCurrentUserBoardManager =
     currentUser?.role === "admin" ||
-    board.members.some((m) => m.user._id === currentUser?._id && m.role === "manager");
+    currentUser?.role === "superadmin" ||
+    (board?.members || []).some(
+      (m) =>
+        m?.user &&
+        (m.user._id ? m.user._id.toString() : String(m.user)) ===
+          (currentUser?._id ? currentUser._id.toString() : "") &&
+        m.role === "manager"
+    );
 
-  const managerCount = board.members.filter((m) => m.role === "manager").length;
+  const managerCount = (board?.members || []).filter((m) => m?.role === "manager").length;
   const isSoleManager = managerCount <= 1;
 
-  const memberIds = board.members.map((m) => m.user._id);
-  const nonMembers = allUsers.filter((u) => !memberIds.includes(u._id));
+  const memberIds = (board?.members || [])
+    .filter((m) => m && m.user)
+    .map((m) => (m.user._id ? m.user._id.toString() : String(m.user)));
+  const nonMembers = allUsers.filter((u) => !memberIds.includes(u._id?.toString()));
 
   const nonMemberOptions = nonMembers.map((u) => ({
     value: u._id,
@@ -60,7 +69,9 @@ export default function MembersPanel({ board, onClose, onChanged }) {
   };
 
   const executeRoleUpdate = async (userId, newRole) => {
-    const targetUser = board.members.find((m) => m.user._id === userId)?.user;
+    const targetUser = (board?.members || []).find(
+      (m) => m?.user && (m.user._id ? m.user._id.toString() : String(m.user)) === String(userId)
+    )?.user;
     setIsUpdatingRole(true);
     try {
       const res = await api.patch(`/boards/${board._id}/members/${userId}`, { role: newRole });
@@ -141,7 +152,9 @@ export default function MembersPanel({ board, onClose, onChanged }) {
         </div>
 
         <div className="space-y-2 mb-4 max-h-72 overflow-y-auto scrollbar-hide pr-1">
-          {board.members.map((m) => {
+          {(board.members || [])
+            .filter((m) => m && m.user)
+            .map((m) => {
             const isThisMemberSoleManager = m.role === "manager" && isSoleManager;
 
             return (
@@ -236,7 +249,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                       <button
                         type="button"
                         onClick={() => setRemoveTarget(m)}
-                        aria-label={`Remove ${m.user.name}`}
+                        aria-label={`Remove ${m.user?.name || "member"}`}
                         className="text-xs font-medium text-muted hover:text-rose-600 hover:bg-rose-50 px-2 py-1 rounded-lg transition-colors shrink-0 touch-manipulation cursor-pointer"
                       >
                         Remove

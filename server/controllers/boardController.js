@@ -6,7 +6,7 @@ import Card from "../models/Card.js";
 export const getBoards = async (req, res) => {
   try {
     const filter =
-      req.user.role === "admin"
+      req.user.role === "admin" || req.user.role === "superadmin"
         ? {}
         : { $or: [{ createdBy: req.user._id }, { "members.user": req.user._id }] };
 
@@ -14,6 +14,12 @@ export const getBoards = async (req, res) => {
       .populate("createdBy", "name email")
       .populate("members.user", "name email avatarColor role")
       .sort({ createdAt: -1 });
+
+    boards.forEach((b) => {
+      if (b.members && b.members.length > 0) {
+        b.members = b.members.filter((m) => m && m.user);
+      }
+    });
 
     res.json(boards);
   } catch (err) {
@@ -39,6 +45,11 @@ export const getBoard = async (req, res) => {
       .populate("createdBy", "name email")
       .populate("members.user", "name email avatarColor role");
     if (!board) return res.status(404).json({ message: "Board not found" });
+
+    // Filter out orphaned / deleted members where population returned null
+    if (board.members && board.members.length > 0) {
+      board.members = board.members.filter((m) => m && m.user);
+    }
 
     // Initialize default labels if empty
     if (!board.labels || board.labels.length === 0) {

@@ -41,13 +41,15 @@ export const register = async (req, res) => {
 
     let user = await User.findOne({ email: cleanEmail });
     if (user) {
-      if (user.status === "active") {
+      if (user.status === "active" || user.status === "approved") {
         return res.status(400).json({ message: "Email already registered" });
       }
-      // Re-registering unactivated user: update details and generate fresh activation token
+      // Re-registering unapproved user: update details and generate fresh activation token
       user.name = cleanName;
       user.role = userRole;
       user.status = "pending";
+      user.rejectionReason = undefined;
+      user.rejectedAt = undefined;
     } else {
       user = new User({
         name: cleanName,
@@ -71,7 +73,7 @@ export const register = async (req, res) => {
 
     res.status(201).json({
       message:
-        "Your account has been created successfully. Please check your email to activate your account and set your password.",
+        "Your account has been created successfully. Please check your email to activate your account and set your password. Your account will remain pending Super Admin approval before you can access the workspace.",
       user: {
         _id: user._id,
         name: user.name,
@@ -79,6 +81,7 @@ export const register = async (req, res) => {
         role: user.role,
         status: user.status,
       },
+      pendingApproval: true,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -93,15 +96,16 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    const cleanEmail = email.toLowerCase().trim();
+    const user = await User.findOne({ email: cleanEmail });
     if (!user) {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    if (user.status === "invited" || user.status === "pending" || !user.password) {
+    if (!user.password) {
       return res.status(403).json({
         message:
-          "This account has not been activated yet. Please check your email to activate your account and set your password.",
+          "This account has not been activated yet. Please check your email to set your password first.",
         status: user.status,
       });
     }
@@ -109,6 +113,35 @@ export const login = async (req, res) => {
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
       return res.status(401).json({ message: "Invalid email or password" });
+    }
+
+    // Super Admin is always allowed to log in
+    if (user.role !== "superadmin") {
+      if (user.status === "pending") {
+        return res.status(403).json({
+          message:
+            "Your account is pending approval by the Super Admin. You will be able to log in once your account has been reviewed and approved.",
+          status: "pending",
+        });
+      }
+
+      if (user.status === "rejected") {
+        const reasonText = user.rejectionReason ? ` Reason: ${user.rejectionReason}` : "";
+        return res.status(403).json({
+          message:
+            `Your account registration has been rejected by the Super Admin.${reasonText} Please contact your administrator for assistance.`,
+          status: "rejected",
+          reason: user.rejectionReason,
+        });
+      }
+
+      if (user.status !== "approved" && user.status !== "active") {
+        return res.status(403).json({
+          message:
+            "Your account is not approved to access the workspace. Please contact your administrator.",
+          status: user.status,
+        });
+      }
     }
 
     res.json({
@@ -127,7 +160,9 @@ export const getMe = async (req, res) => {
 
 // GET /api/auth/users
 export const listUsers = async (req, res) => {
-  const users = await User.find().select("name email role status avatarColor createdAt");
+  const users = await User.find().select(
+    "name email role status avatarColor createdAt approvedAt rejectedAt rejectionReason"
+  );
   res.json(users);
 };
 
@@ -147,7 +182,7 @@ export const inviteMember = async (req, res) => {
     let user = await User.findOne({ email: cleanEmail });
 
     if (user) {
-      if (user.status === "active") {
+      if (user.status === "active" || user.status === "approved") {
         return res.status(400).json({ message: "A user with this email already has an active account" });
       }
       // Re-inviting a pending user: update details and generate fresh token
@@ -259,17 +294,38 @@ export const activateAccount = async (req, res) => {
       });
     }
 
-    // Activate user, hash password, and clear token
+    // Set password and clear activation token
     user.password = password;
-    user.status = "active";
     user.activationToken = undefined;
     user.activationTokenExpires = undefined;
+
+    // Check if account is approved: Super Admin or already approved users
+    const isApproved =
+      user.role === "superadmin" || user.status === "approved" || user.status === "active";
+
+    if (isApproved) {
+      user.status = "approved";
+    } else {
+      user.status = "pending";
+    }
     await user.save();
+
+    if (!isApproved) {
+      return res.json({
+        message:
+          "Your password has been successfully configured. Your account is currently pending Super Admin approval before you can sign in.",
+        user: user.toSafeObject(),
+        isApproved: false,
+        pendingApproval: true,
+      });
+    }
 
     res.json({
       message: "Account activated successfully! You can now log in.",
       user: user.toSafeObject(),
       token: signToken(user._id),
+      isApproved: true,
+      pendingApproval: false,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -396,8 +452,15 @@ export const resetPassword = async (req, res) => {
     user.resetPasswordTokenExpires = undefined;
     await user.save();
 
+    const isApproved =
+      user.role === "superadmin" || user.status === "approved" || user.status === "active";
+
     res.json({
-      message: "Password has been reset successfully. You can now log in with your new password.",
+      message: isApproved
+        ? "Password has been reset successfully. You can now log in with your new password."
+        : "Password has been reset successfully. However, your account is currently pending Super Admin approval before you can sign in.",
+      isApproved,
+      status: user.status,
     });
   } catch (err) {
     res.status(500).json({ message: err.message });

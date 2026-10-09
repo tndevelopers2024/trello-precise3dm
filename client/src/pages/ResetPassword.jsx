@@ -8,6 +8,7 @@ import {
   Loader2,
   ArrowRight,
   ShieldCheck,
+  Clock,
 } from "lucide-react";
 import api from "../api/axios.js";
 import { useToast } from "../context/ToastContext.jsx";
@@ -29,6 +30,7 @@ export default function ResetPassword() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isApproved, setIsApproved] = useState(true);
 
   useEffect(() => {
     if (!token) {
@@ -77,15 +79,20 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
-      await api.post("/auth/reset-password", {
+      const res = await api.post("/auth/reset-password", {
         token,
         password,
       });
 
+      const approved = res.data?.isApproved !== false;
+      setIsApproved(approved);
       setSuccess(true);
-      toast.success("Password reset successfully! You can now log in.", {
-        title: "Password Updated",
-      });
+      toast.success(
+        approved
+          ? "Password reset successfully! You can now log in."
+          : "Password updated. Account is pending Super Admin approval.",
+        { title: "Password Updated" }
+      );
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to reset password. Please try again.";
       setError(msg);
@@ -174,27 +181,54 @@ export default function ResetPassword() {
               </div>
             </div>
           ) : success ? (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-                <CheckCircle2 size={30} />
+            isApproved ? (
+              <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+                  <CheckCircle2 size={30} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Password Reset Complete!</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+                    Your password has been changed successfully. You can now sign in with your new credentials.
+                  </p>
+                </div>
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login")}
+                    className="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Sign In Now</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Password Reset Complete!</h3>
-                <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
-                  Your password has been changed successfully. You can now sign in with your new credentials.
-                </p>
+            ) : (
+              <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-700 flex items-center justify-center mx-auto shadow-sm">
+                  <Clock size={30} />
+                </div>
+                <div className="space-y-1.5">
+                  <span className="inline-block text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wide">
+                    Pending Approval
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900">Password Updated</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed max-w-sm mx-auto">
+                    Your password has been updated. However, your account remains pending Super Admin approval. You will be able to access the application once your account is approved.
+                  </p>
+                </div>
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login")}
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Return to Sign In</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="pt-3">
-                <button
-                  type="button"
-                  onClick={() => navigate("/login")}
-                  className="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Sign In Now</span>
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            </div>
+            )
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {userInfo && (

@@ -20,11 +20,20 @@ const MyTasks = lazy(() => import("./pages/MyTasks.jsx"));
 const ActivateAccount = lazy(() => import("./pages/ActivateAccount.jsx"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword.jsx"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword.jsx"));
+const SuperAdminDashboard = lazy(() => import("./pages/SuperAdminDashboard.jsx"));
 
 const Private = ({ children }) => {
   const { user, loading } = useAuth();
   if (loading) return <Preloader fullScreen message="Authenticating session…" />;
   return user ? children : <Navigate to="/login" replace />;
+};
+
+const SuperAdminRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  if (loading) return <Preloader fullScreen message="Authenticating session…" />;
+  if (!user) return <Navigate to="/login" replace />;
+  if (user.role !== "superadmin") return <Navigate to="/" replace />;
+  return children;
 };
 
 // Lightweight in-page route suspense fallback to avoid full-screen flashing during normal navigation
@@ -60,6 +69,14 @@ export default function App() {
                 <Route path="/" element={<Private><Dashboard /></Private>} />
                 <Route path="/my-tasks" element={<Private><MyTasks /></Private>} />
                 <Route path="/boards/:id" element={<Private><BoardView /></Private>} />
+                <Route
+                  path="/superadmin"
+                  element={
+                    <SuperAdminRoute>
+                      <SuperAdminDashboard />
+                    </SuperAdminRoute>
+                  }
+                />
               </Routes>
             </Suspense>
           </div>

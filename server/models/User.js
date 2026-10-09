@@ -10,17 +10,26 @@ const userSchema = new mongoose.Schema(
       type: String,
       minlength: 6,
       required: function () {
-        return this.status === "active";
+        return this.status === "active" || this.status === "approved";
       },
     },
-    role: { type: String, enum: ["admin", "member"], default: "member" },
-    status: { type: String, enum: ["active", "invited", "pending"], default: "active" },
+    role: { type: String, enum: ["superadmin", "admin", "member"], default: "member" },
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "active", "invited"],
+      default: "pending",
+    },
     avatarColor: { type: String, default: "#0C66E4" },
     activationToken: { type: String },
     activationTokenExpires: { type: Date },
     resetPasswordToken: { type: String },
     resetPasswordTokenExpires: { type: Date },
     invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    approvedAt: { type: Date },
+    approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    rejectedAt: { type: Date },
+    rejectedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    rejectionReason: { type: String },
   },
   { timestamps: true }
 );
@@ -59,8 +68,11 @@ userSchema.methods.toSafeObject = function () {
     name: this.name,
     email: this.email,
     role: this.role,
-    status: this.status || "active",
+    status: this.status || "pending",
     avatarColor: this.avatarColor,
+    approvedAt: this.approvedAt,
+    rejectedAt: this.rejectedAt,
+    rejectionReason: this.rejectionReason,
     createdAt: this.createdAt,
   };
 };

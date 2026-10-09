@@ -10,6 +10,7 @@ import {
   ShieldCheck,
   User,
   Sparkles,
+  Clock,
 } from "lucide-react";
 import api from "../api/axios.js";
 import { useToast } from "../context/ToastContext.jsx";
@@ -31,6 +32,7 @@ export default function ActivateAccount() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isApproved, setIsApproved] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -79,15 +81,25 @@ export default function ActivateAccount() {
 
     setLoading(true);
     try {
-      await api.post("/auth/activate", {
+      const res = await api.post("/auth/activate", {
         token,
         password,
       });
 
       setSuccess(true);
-      toast.success("Account activated successfully! You can now log in.", {
-        title: "Account Activated",
-      });
+      const approved = Boolean(res.data?.isApproved);
+      setIsApproved(approved);
+
+      if (approved) {
+        toast.success("Account activated successfully! You can now log in.", {
+          title: "Account Activated",
+        });
+      } else {
+        toast.info(
+          "Password saved. Your account is pending Super Admin review and approval.",
+          { title: "Pending Approval" }
+        );
+      }
     } catch (err) {
       const msg = err.response?.data?.message || "Failed to activate account. Please try again.";
       setError(msg);
@@ -172,27 +184,63 @@ export default function ActivateAccount() {
               </div>
             </div>
           ) : success ? (
-            <div className="text-center py-6 space-y-4">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
-                <CheckCircle2 size={30} />
+            isApproved ? (
+              <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center mx-auto shadow-sm">
+                  <CheckCircle2 size={30} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Account Activated!</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
+                    Your password has been securely set and your account is now ready for use.
+                  </p>
+                </div>
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login")}
+                    className="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Proceed to Sign In</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Account Activated!</h3>
-                <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed">
-                  Your password has been securely set and your account is now ready for use.
-                </p>
+            ) : (
+              <div className="text-center py-6 space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-14 h-14 rounded-2xl bg-amber-50 border-2 border-amber-300 text-amber-700 flex items-center justify-center mx-auto shadow-sm">
+                  <Clock size={30} />
+                </div>
+                <div className="space-y-2">
+                  <span className="inline-block text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wide">
+                    Pending Super Admin Approval
+                  </span>
+                  <h3 className="text-lg font-bold text-slate-900">Password Set Successfully</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 mt-1.5 leading-relaxed max-w-sm mx-auto">
+                    Your password has been securely saved. However, all user accounts require approval by the Super Admin before access is granted.
+                  </p>
+                </div>
+                <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-xl text-left text-xs text-amber-900 space-y-1">
+                  <p className="font-semibold flex items-center gap-1.5 text-amber-800">
+                    <ShieldCheck size={14} className="text-amber-600 shrink-0" />
+                    <span>Next Steps</span>
+                  </p>
+                  <p className="text-[11px] text-amber-800/90 leading-relaxed">
+                    A Super Admin will review your registration. Once approved, you will be able to log in with your email and password.
+                  </p>
+                </div>
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/login")}
+                    className="w-full bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Proceed to Sign In</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="pt-3">
-                <button
-                  type="button"
-                  onClick={() => navigate("/login")}
-                  className="w-full bg-gradient-to-r from-orange-500 via-orange-600 to-amber-600 hover:from-orange-600 hover:to-orange-700 text-white text-sm font-semibold rounded-xl py-3 px-4 transition-all shadow-lg shadow-orange-500/25 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <span>Proceed to Sign In</span>
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            </div>
+            )
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Member Welcome Card */}

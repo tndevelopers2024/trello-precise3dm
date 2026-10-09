@@ -136,12 +136,13 @@ function Card({
   };
 
   const filteredMembers = useMemo(() => {
-    if (!memberSearch.trim()) return boardMembers;
+    const valid = (boardMembers || []).filter((m) => m && m.user);
+    if (!memberSearch.trim()) return valid;
     const q = memberSearch.toLowerCase();
-    return boardMembers.filter(
+    return valid.filter(
       (m) =>
-        m.user?.name?.toLowerCase().includes(q) ||
-        m.user?.email?.toLowerCase().includes(q)
+        m.user.name?.toLowerCase().includes(q) ||
+        m.user.email?.toLowerCase().includes(q)
     );
   }, [boardMembers, memberSearch]);
 

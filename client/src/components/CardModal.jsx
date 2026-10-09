@@ -1300,24 +1300,26 @@ export default function CardModal({
                           {boardMembers.length === 0 ? (
                             <p className="text-xs text-muted/60 px-2 py-1">No board members</p>
                           ) : (
-                            boardMembers
+                            (boardMembers || [])
+                              .filter((m) => m && m.user)
                               .filter((m) => {
                                 if (!memberSearchModal.trim()) return true;
                                 const q = memberSearchModal.toLowerCase();
                                 return (
-                                  m.user?.name?.toLowerCase().includes(q) ||
-                                  m.user?.email?.toLowerCase().includes(q)
+                                  m.user.name?.toLowerCase().includes(q) ||
+                                  m.user.email?.toLowerCase().includes(q)
                                 );
                               })
                               .map((m) => {
+                                const memberId = m.user._id ? m.user._id.toString() : String(m.user);
                                 const isAssigned = (card.assignees || []).some(
-                                  (a) => (a._id ? a._id.toString() : String(a)) === (m.user?._id ? m.user._id.toString() : String(m.user))
+                                  (a) => (a._id ? a._id.toString() : String(a)) === memberId
                                 );
                                 return (
                                   <button
-                                    key={m.user._id}
+                                    key={memberId}
                                     type="button"
-                                    onClick={() => toggleAssignee(m.user._id)}
+                                    onClick={() => toggleAssignee(m.user._id || m.user)}
                                     className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
                                       isAssigned ? "bg-accent/15 text-accent font-medium" : "text-ink hover:bg-surface-2"
                                     }`}
@@ -1327,9 +1329,9 @@ export default function CardModal({
                                         className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
                                         style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
                                       >
-                                        {m.user.name?.[0]?.toUpperCase()}
+                                        {(m.user.name?.[0] || "U").toUpperCase()}
                                       </span>
-                                      <span className="truncate">{m.user.name}</span>
+                                      <span className="truncate">{m.user.name || "Member"}</span>
                                     </div>
                                     {isAssigned && <Check size={13} className="text-accent font-bold" />}
                                   </button>
@@ -1948,7 +1950,13 @@ export default function CardModal({
                       const apiBase = rawApiUrl
                         ? rawApiUrl.replace(/\/api\/?$/, "")
                         : "http://localhost:5000";
-                      const fullUrl = isServerFile ? `${apiBase}${att.url}` : att.url;
+                      const isServerFile =
+                        att?.type === "file" || Boolean(att?.url && att.url.startsWith("/"));
+                      const fullUrl = att?.url
+                        ? isServerFile
+                          ? `${apiBase}${att.url}`
+                          : att.url
+                        : "";
 
                       return (
                         <div

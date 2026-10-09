@@ -9,15 +9,19 @@ import { fileURLToPath } from "url";
 import { Server } from "socket.io";
 
 import connectDB from "./config/db.js";
+import { ensureSuperAdmin } from "./config/ensureSuperAdmin.js";
 import { initSocket } from "./sockets/index.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import boardRoutes from "./routes/boardRoutes.js";
 import listRoutes from "./routes/listRoutes.js";
 import cardRoutes from "./routes/cardRoutes.js";
+import superAdminRoutes from "./routes/superAdminRoutes.js";
 
 dotenv.config();
-connectDB();
+connectDB().then(() => {
+  ensureSuperAdmin();
+});
 
 const app = express();
 const server = http.createServer(app);
@@ -94,6 +98,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/boards", boardRoutes);
 app.use("/api/lists", listRoutes);
 app.use("/api/cards", cardRoutes);
+app.use("/api/superadmin", superAdminRoutes);
 
 app.get("/", (req, res) => res.send("Trello-clone API is running"));
 

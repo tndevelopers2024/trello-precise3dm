@@ -13,6 +13,33 @@ export const protect = async (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       req.user = await User.findById(decoded.id).select("-password");
       if (!req.user) return res.status(401).json({ message: "User not found" });
+
+      // Enforce approval checks on all protected routes
+      if (req.user.role !== "superadmin") {
+        if (req.user.status === "pending") {
+          return res.status(403).json({
+            message: "Your account is pending approval by the Super Admin.",
+            status: "pending",
+          });
+        }
+        if (req.user.status === "rejected") {
+          return res.status(403).json({
+            message:
+              req.user.rejectionReason
+                ? `Your account registration was not approved by the Super Admin: ${req.user.rejectionReason}`
+                : "Your account registration has been rejected by the Super Admin.",
+            status: "rejected",
+            reason: req.user.rejectionReason,
+          });
+        }
+        if (req.user.status !== "approved" && req.user.status !== "active") {
+          return res.status(403).json({
+            message: "Your account is not approved to access the workspace.",
+            status: req.user.status,
+          });
+        }
+      }
+
       return next();
     } catch (err) {
       return res.status(401).json({ message: "Not authorized, token invalid" });
@@ -22,10 +49,18 @@ export const protect = async (req, res, next) => {
   return res.status(401).json({ message: "Not authorized, no token" });
 };
 
-// Restrict a route to global admins (company-wide PM role)
+// Restrict a route to admins or super admins
 export const adminOnly = (req, res, next) => {
-  if (req.user.role !== "admin") {
+  if (req.user.role !== "admin" && req.user.role !== "superadmin") {
     return res.status(403).json({ message: "Admin access only" });
+  }
+  next();
+};
+
+// Restrict a route exclusively to Super Admins
+export const superAdminOnly = (req, res, next) => {
+  if (req.user.role !== "superadmin") {
+    return res.status(403).json({ message: "Super Admin access required" });
   }
   next();
 };
@@ -38,6 +73,7 @@ export const boardMember = async (req, res, next) => {
 
   const isMember =
     req.user.role === "admin" ||
+    req.user.role === "superadmin" ||
     board.createdBy.equals(req.user._id) ||
     board.members.some((m) => m.user.equals(req.user._id));
 
@@ -54,6 +90,7 @@ export const boardManager = async (req, res, next) => {
 
   const isManager =
     req.user.role === "admin" ||
+    req.user.role === "superadmin" ||
     board.createdBy.equals(req.user._id) ||
     board.members.some((m) => m.user.equals(req.user._id) && m.role === "manager");
 

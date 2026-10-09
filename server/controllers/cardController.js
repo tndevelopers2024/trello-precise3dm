@@ -274,7 +274,7 @@ export const updateComment = async (req, res) => {
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     const isAuthor = comment.user.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === "admin";
+    const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
     if (!isAuthor && !isAdmin) {
       return res.status(403).json({ message: "Not authorized to edit this comment" });
     }
@@ -300,7 +300,7 @@ export const deleteComment = async (req, res) => {
     if (!comment) return res.status(404).json({ message: "Comment not found" });
 
     const isAuthor = comment.user.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === "admin";
+    const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
     if (!isAuthor && !isAdmin) {
       return res.status(403).json({ message: "Not authorized to delete this comment" });
     }
@@ -428,7 +428,7 @@ export const deleteAttachment = async (req, res) => {
     if (!attachment) return res.status(404).json({ message: "Attachment not found" });
 
     const isAuthor = attachment.addedBy?.toString() === req.user._id.toString();
-    const isAdmin = req.user.role === "admin";
+    const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
     if (!isAuthor && !isAdmin && attachment.addedBy) {
       return res.status(403).json({ message: "Not authorized to remove this attachment" });
     }

@@ -9,6 +9,7 @@ import {
   CheckSquare,
   Users,
   Shield,
+  ShieldCheck,
   Layers,
   Sparkles,
   KeyRound,
@@ -87,7 +88,7 @@ export default function Navbar() {
   // Check if we are currently on a board page with active board data
   const isBoardView = location.pathname.startsWith("/boards/") && !!boardHeaderData?.board;
   const board = boardHeaderData?.board;
-  const members = board?.members || [];
+  const members = (board?.members || []).filter((m) => m && m.user);
   const maxVisibleAvatars = 4;
   const visibleMembers = members.slice(0, maxVisibleAvatars);
   const extraMembersCount = Math.max(0, members.length - maxVisibleAvatars);
@@ -113,10 +114,10 @@ export default function Navbar() {
             </Link>
 
             {/* Segmented Desktop Navigation Tabs */}
-            <nav className="hidden md:flex items-center p-1 bg-surface-2/90 rounded-xl border border-line/70 shadow-xs shrink-0">
+            <nav className="hidden md:flex items-center h-9 p-1 bg-surface-2/80 rounded-xl border border-line/70 shadow-xs shrink-0">
               <Link
                 to="/"
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                className={`h-7 px-3 rounded-lg text-xs font-semibold flex items-center transition-all duration-150 ${
                   location.pathname === "/"
                     ? "bg-white text-orange-600 shadow-xs border border-orange-200/60"
                     : "text-muted hover:text-ink hover:bg-surface-2 border border-transparent"
@@ -126,7 +127,7 @@ export default function Navbar() {
               </Link>
               <Link
                 to="/my-tasks"
-                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 ${
+                className={`h-7 px-3 rounded-lg text-xs font-semibold flex items-center transition-all duration-150 ${
                   location.pathname === "/my-tasks"
                     ? "bg-white text-orange-600 shadow-xs border border-orange-200/60"
                     : "text-muted hover:text-ink hover:bg-surface-2 border border-transparent"
@@ -134,48 +135,48 @@ export default function Navbar() {
               >
                 My tasks
               </Link>
+              {user?.role === "superadmin" && (
+                <Link
+                  to="/superadmin"
+                  className={`h-7 px-3 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all duration-150 ${
+                    location.pathname === "/superadmin"
+                      ? "bg-white text-purple-700 shadow-xs border border-purple-200/70"
+                      : "text-muted hover:text-purple-700 hover:bg-purple-50/50 border border-transparent"
+                  }`}
+                >
+                  <ShieldCheck
+                    size={13}
+                    className={location.pathname === "/superadmin" ? "text-purple-600" : "text-purple-500"}
+                  />
+                  <span>Super Admin</span>
+                </Link>
+              )}
             </nav>
 
             {/* Board Context Indicator (When inside a Board) */}
             {isBoardView && (
               <>
-                <div className="hidden lg:block w-px h-6 bg-line/80 shrink-0" />
+                <div className="hidden md:block w-px h-5 bg-line/80 shrink-0" />
 
-                <div className="min-w-0 flex items-center gap-2.5 bg-surface-2/50 border border-line/60 rounded-xl px-2.5 sm:px-3 py-1">
+                <div
+                  className="min-w-0 h-9 flex items-center gap-2 bg-surface-2/70 hover:bg-surface-2 border border-line/70 rounded-xl px-3 transition-colors shadow-xs"
+                  title={board.description ? `${board.title} — ${board.description}` : board.title}
+                >
                   <span
-                    className="w-2.5 h-2.5 rounded-full ring-2 ring-orange-500/20 shrink-0 shadow-xs"
+                    className="w-2.5 h-2.5 rounded-full ring-2 ring-black/5 shrink-0 shadow-xs"
                     style={{ backgroundColor: board.color || "#EA580C" }}
                   />
 
-                  <div className="min-w-0 flex flex-col justify-center">
-                    <div className="flex items-center gap-2">
-                      <h1
-                        className="text-xs sm:text-sm font-bold text-ink tracking-tight truncate max-w-[140px] sm:max-w-[200px] md:max-w-[240px] lg:max-w-[300px] xl:max-w-[380px]"
-                        title={board.title}
-                      >
-                        {board.title}
-                      </h1>
-                      <span className="hidden xl:inline-flex text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-orange-50 text-orange-700 border border-orange-200/70">
-                        3D Project
-                      </span>
-                    </div>
-
-                    {board.description ? (
-                      <p
-                        className="text-[10px] sm:text-[11px] text-muted truncate max-w-[140px] sm:max-w-[200px] md:max-w-[240px] lg:max-w-[300px] xl:max-w-[380px] leading-none"
-                        title={board.description}
-                      >
-                        {board.description}
-                      </p>
-                    ) : null}
-                  </div>
+                  <h1 className="text-xs sm:text-sm font-semibold text-slate-800 tracking-tight truncate max-w-[160px] sm:max-w-[220px] md:max-w-[280px] lg:max-w-[360px] xl:max-w-[440px]">
+                    {board.title}
+                  </h1>
                 </div>
               </>
             )}
           </div>
 
           {/* ================= RIGHT SECTION: BOARD ACTIONS & PROFILE ================= */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
             {/* Board Controls (Visible on Desktop / Tablet when on Board) */}
             {isBoardView && (
               <div className="hidden sm:flex items-center gap-2 lg:gap-2.5">
@@ -212,7 +213,7 @@ export default function Navbar() {
                   </button>
                 )}
 
-                <div className="w-px h-6 bg-line/80 ml-0.5 shrink-0" />
+                <div className="w-px h-5 bg-line/80 mx-0.5 shrink-0" />
               </div>
             )}
 
@@ -223,7 +224,7 @@ export default function Navbar() {
                 onClick={() => setProfileDropdownOpen((prev) => !prev)}
                 aria-expanded={profileDropdownOpen}
                 aria-haspopup="menu"
-                className={`flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl transition-all duration-150 border focus:outline-none focus:ring-2 focus:ring-orange-500/40 cursor-pointer select-none bg-surface shadow-xs ${
+                className={`h-9 flex items-center gap-2 pl-1.5 pr-2.5 rounded-xl transition-all duration-150 border focus:outline-none focus:ring-2 focus:ring-orange-500/40 cursor-pointer select-none bg-surface shadow-xs ${
                   profileDropdownOpen
                     ? "bg-orange-50/70 border-orange-300 ring-2 ring-orange-500/20"
                     : "hover:bg-surface-2 border-line/80 hover:border-line"
@@ -231,24 +232,28 @@ export default function Navbar() {
               >
                 {/* Avatar Badge */}
                 <span
-                  className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-xs ring-2 ring-white/40"
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 shadow-xs"
                   style={{ backgroundColor: user?.avatarColor || "#EA580C" }}
                 >
                   {user?.name?.[0]?.toUpperCase() || "U"}
                 </span>
 
                 {/* User Name */}
-                <span className="text-xs sm:text-sm font-semibold text-slate-800 max-w-[120px] lg:max-w-[150px] truncate">
+                <span className="text-xs font-semibold text-slate-800 max-w-[120px] lg:max-w-[160px] truncate">
                   {user?.name}
                 </span>
 
                 {/* Role Pill */}
-                {user?.role === "admin" ? (
-                  <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-orange-500/10 text-orange-700 font-bold border border-orange-500/20">
+                {user?.role === "superadmin" ? (
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-bold border border-purple-200/80">
+                    SUPER ADMIN
+                  </span>
+                ) : user?.role === "admin" ? (
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 font-bold border border-orange-200/60">
                     PM
                   </span>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold border border-slate-200">
+                  <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold border border-slate-200/70">
                     MEMBER
                   </span>
                 )}
@@ -283,16 +288,34 @@ export default function Navbar() {
                       <div className="mt-1 flex items-center gap-1.5">
                         <span
                           className={`text-[9px] uppercase tracking-wider font-bold px-1.5 py-0.2 rounded ${
-                            user?.role === "admin"
+                            user?.role === "superadmin"
+                              ? "bg-purple-500/15 text-purple-700 border border-purple-500/30"
+                              : user?.role === "admin"
                               ? "bg-orange-500/15 text-orange-700 border border-orange-500/30"
                               : "bg-surface-3 text-ink"
                           }`}
                         >
-                          {user?.role === "admin" ? "Project Manager" : "Employee"}
+                          {user?.role === "superadmin"
+                            ? "Super Administrator"
+                            : user?.role === "admin"
+                            ? "Project Manager"
+                            : "Employee"}
                         </span>
                       </div>
                     </div>
                   </div>
+
+                  {/* Super Admin Dashboard Link */}
+                  {user?.role === "superadmin" && (
+                    <Link
+                      to="/superadmin"
+                      onClick={() => setProfileDropdownOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-purple-700 hover:bg-purple-50 transition-colors"
+                    >
+                      <ShieldCheck size={15} className="text-purple-600" />
+                      <span>Super Admin Dashboard</span>
+                    </Link>
+                  )}
 
                   {/* Navigation item inside dropdown */}
                   <Link
@@ -399,11 +422,11 @@ export default function Navbar() {
                   <div className="flex items-center -space-x-1.5">
                     {visibleMembers.map((m) => (
                       <span
-                        key={m.user._id || m._id}
+                        key={m.user?._id || m._id}
                         className="w-6 h-6 rounded-full border border-surface flex items-center justify-center text-[9px] text-white font-bold"
-                        style={{ backgroundColor: m.user.avatarColor || "#EA580C" }}
+                        style={{ backgroundColor: m.user?.avatarColor || "#EA580C" }}
                       >
-                        {m.user.name?.[0]?.toUpperCase()}
+                        {(m.user?.name?.[0] || "M").toUpperCase()}
                       </span>
                     ))}
                     {extraMembersCount > 0 && (
@@ -456,6 +479,20 @@ export default function Navbar() {
                 <CheckSquare size={16} />
                 <span>My tasks</span>
               </Link>
+              {user?.role === "superadmin" && (
+                <Link
+                  to="/superadmin"
+                  onClick={closeMobileMenu}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-colors ${
+                    location.pathname === "/superadmin"
+                      ? "bg-purple-500/10 text-purple-700 font-bold border border-purple-500/20"
+                      : "text-muted hover:text-ink hover:bg-surface-2"
+                  }`}
+                >
+                  <ShieldCheck size={16} className="text-purple-600" />
+                  <span>Super Admin Dashboard</span>
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => {

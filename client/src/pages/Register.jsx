@@ -242,14 +242,14 @@ export default function Register() {
                     </div>
                   </div>
 
-                  {/* Security Explanatory Note */}
-                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1">
+                  {/* Security & Approval Explanatory Note */}
+                  <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-1.5">
                     <p className="font-semibold text-slate-700 flex items-center gap-1.5">
                       <Shield size={14} className="text-orange-500" />
-                      <span>Secure One-Time Activation</span>
+                      <span>Approval Workflow & Activation</span>
                     </p>
                     <p className="text-[11px] sm:text-xs text-slate-500 leading-relaxed">
-                      We've sent an activation link containing an <strong>"Activate Account / Set Password"</strong> button. The link is valid for 24 hours and allows you to securely choose your own password.
+                      We've sent an activation link to your email to set your password. After setting your password, your account will remain <strong>Pending Approval</strong> until a Super Admin approves it.
                     </p>
                   </div>
 
