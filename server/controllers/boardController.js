@@ -10,7 +10,7 @@ export const getBoards = async (req, res) => {
         ? {}
         : { $or: [{ createdBy: req.user._id }, { "members.user": req.user._id }] };
 
-    const boards = await Board.find({ ...filter, archived: false })
+    const boards = await Board.find({ ...filter, archived: false, isDeleted: { $ne: true } })
       .populate("createdBy", "name email")
       .populate("members.user", "name email avatarColor role")
       .sort({ createdAt: -1 });
@@ -18,6 +18,38 @@ export const getBoards = async (req, res) => {
     boards.forEach((b) => {
       if (b.members && b.members.length > 0) {
         b.members = b.members.filter((m) => m && m.user);
+      }
+      if (b.labels && b.labels.length > 0) {
+        b.labels = b.labels.filter((l) => !l.isDeleted);
+      }
+    });
+
+    res.json(boards);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// GET /api/boards/archived - archived boards for admin/superadmin or members
+export const getArchivedBoards = async (req, res) => {
+  try {
+    const filter =
+      req.user.role === "admin" || req.user.role === "superadmin"
+        ? {}
+        : { $or: [{ createdBy: req.user._id }, { "members.user": req.user._id }] };
+
+    const boards = await Board.find({ ...filter, archived: true, isDeleted: { $ne: true } })
+      .populate("createdBy", "name email")
+      .populate("archivedBy", "name email")
+      .populate("members.user", "name email avatarColor role")
+      .sort({ archivedAt: -1, updatedAt: -1 });
+
+    boards.forEach((b) => {
+      if (b.members && b.members.length > 0) {
+        b.members = b.members.filter((m) => m && m.user);
+      }
+      if (b.labels && b.labels.length > 0) {
+        b.labels = b.labels.filter((l) => !l.isDeleted);
       }
     });
 
@@ -43,12 +75,18 @@ export const getBoard = async (req, res) => {
   try {
     const board = await Board.findById(req.params.id)
       .populate("createdBy", "name email")
+      .populate("archivedBy", "name email")
       .populate("members.user", "name email avatarColor role");
-    if (!board) return res.status(404).json({ message: "Board not found" });
+    if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
 
     // Filter out orphaned / deleted members where population returned null
     if (board.members && board.members.length > 0) {
       board.members = board.members.filter((m) => m && m.user);
+    }
+
+    // Filter out soft-deleted labels
+    if (board.labels && board.labels.length > 0) {
+      board.labels = board.labels.filter((l) => !l.isDeleted);
     }
 
     // Initialize default labels if empty
@@ -66,11 +104,12 @@ export const getBoard = async (req, res) => {
 // POST /api/boards  (admin/PM only)
 export const createBoard = async (req, res) => {
   try {
-    const { title, description, color } = req.body;
+    const { title, description, color, dueDate } = req.body;
     const board = await Board.create({
       title,
       description,
       color,
+      dueDate: dueDate ? new Date(dueDate) : undefined,
       createdBy: req.user._id,
       members: [{ user: req.user._id, role: "manager" }],
       labels: DEFAULT_LABELS,
@@ -92,22 +131,103 @@ export const createBoard = async (req, res) => {
 // PATCH /api/boards/:id
 export const updateBoard = async (req, res) => {
   try {
-    const board = await Board.findByIdAndUpdate(req.params.id, req.body, { new: true })
+    const board = await Board.findById(req.params.id);
+    if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
+
+    const allowedUpdates = ["title", "description", "color", "dueDate"];
+    allowedUpdates.forEach((field) => {
+      if (req.body[field] !== undefined) {
+        if (field === "dueDate") {
+          board.dueDate = req.body.dueDate ? new Date(req.body.dueDate) : null;
+        } else {
+          board[field] = req.body[field];
+        }
+      }
+    });
+
+    await board.save();
+
+    const populated = await Board.findById(board._id)
       .populate("createdBy", "name email")
+      .populate("archivedBy", "name email")
       .populate("members.user", "name email avatarColor role");
-    res.json(board);
+
+    res.json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// DELETE /api/boards/:id
+// PATCH /api/boards/:id/archive  (admin & superadmin & board manager)
+export const archiveBoard = async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
+
+    board.archived = true;
+    board.archivedAt = new Date();
+    board.archivedBy = req.user._id;
+    await board.save();
+
+    const populated = await Board.findById(board._id)
+      .populate("createdBy", "name email")
+      .populate("archivedBy", "name email")
+      .populate("members.user", "name email avatarColor role");
+
+    res.json({ message: "Project archived successfully", board: populated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// PATCH /api/boards/:id/restore  (admin & superadmin & board manager)
+export const restoreBoard = async (req, res) => {
+  try {
+    const board = await Board.findById(req.params.id);
+    if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
+
+    board.archived = false;
+    board.archivedAt = undefined;
+    board.archivedBy = undefined;
+    await board.save();
+
+    const populated = await Board.findById(board._id)
+      .populate("createdBy", "name email")
+      .populate("members.user", "name email avatarColor role");
+
+    res.json({ message: "Project restored successfully", board: populated });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// DELETE /api/boards/:id  (SOFT DELETE ONLY: never permanently delete)
 export const deleteBoard = async (req, res) => {
   try {
-    await Card.deleteMany({ board: req.params.id });
-    await List.deleteMany({ board: req.params.id });
-    await Board.findByIdAndDelete(req.params.id);
-    res.json({ message: "Board deleted" });
+    const board = await Board.findById(req.params.id);
+    if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
+
+    const now = new Date();
+
+    // Soft delete all cards on this board
+    await Card.updateMany(
+      { board: req.params.id },
+      { isDeleted: true, deletedAt: now, deletedBy: req.user._id }
+    );
+
+    // Soft delete all lists on this board
+    await List.updateMany(
+      { board: req.params.id },
+      { isDeleted: true, deletedAt: now, deletedBy: req.user._id }
+    );
+
+    // Soft delete the board record
+    board.isDeleted = true;
+    board.deletedAt = now;
+    board.deletedBy = req.user._id;
+    await board.save();
+
+    res.json({ message: "Board deleted successfully" });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -264,19 +384,22 @@ export const updateBoardLabel = async (req, res) => {
   }
 };
 
-// DELETE /api/boards/:id/labels/:labelId
+// DELETE /api/boards/:id/labels/:labelId  (SOFT DELETE)
 export const deleteBoardLabel = async (req, res) => {
   try {
     const board = await Board.findById(req.params.id);
-    if (!board) return res.status(404).json({ message: "Board not found" });
+    if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
 
     const label = board.labels.id(req.params.labelId);
     if (!label) return res.status(404).json({ message: "Label not found" });
 
-    board.labels.pull(req.params.labelId);
+    label.isDeleted = true;
     await board.save();
 
     const populated = await board.populate("members.user", "name email avatarColor role");
+    if (populated.labels) {
+      populated.labels = populated.labels.filter((l) => !l.isDeleted);
+    }
     res.json(populated);
   } catch (err) {
     res.status(500).json({ message: err.message });

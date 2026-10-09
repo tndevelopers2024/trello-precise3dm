@@ -14,6 +14,10 @@ export const protect = async (req, res, next) => {
       req.user = await User.findById(decoded.id).select("-password");
       if (!req.user) return res.status(401).json({ message: "User not found" });
 
+      if (req.user.isDeleted) {
+        return res.status(403).json({ message: "This account has been deactivated." });
+      }
+
       // Enforce approval checks on all protected routes
       if (req.user.role !== "superadmin") {
         if (req.user.status === "pending") {
@@ -69,7 +73,7 @@ export const superAdminOnly = (req, res, next) => {
 export const boardMember = async (req, res, next) => {
   const boardId = req.params.boardId || req.body.board || req.params.id;
   const board = await Board.findById(boardId);
-  if (!board) return res.status(404).json({ message: "Board not found" });
+  if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
 
   const isMember =
     req.user.role === "admin" ||
@@ -86,7 +90,7 @@ export const boardMember = async (req, res, next) => {
 // Ensure the logged-in user is a "manager" on the board (can add/remove members, delete board)
 export const boardManager = async (req, res, next) => {
   const board = req.board || (await Board.findById(req.params.boardId || req.params.id));
-  if (!board) return res.status(404).json({ message: "Board not found" });
+  if (!board || board.isDeleted) return res.status(404).json({ message: "Board not found" });
 
   const isManager =
     req.user.role === "admin" ||

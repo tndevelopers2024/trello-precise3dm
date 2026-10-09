@@ -1,43 +1,43 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { useNavigate } from "react-router-dom";
-import { X, Plus, Loader2, Calendar } from "lucide-react";
+import { X, Check, Loader2 } from "lucide-react";
 import api from "../api/axios.js";
 import { PALETTE } from "../utils/color.js";
 import { useToast } from "../context/ToastContext.jsx";
 import DatePicker from "./ui/DatePicker.jsx";
 
-// Popup for creating a new project. Only ever rendered for admins (callers
-// gate this), but the create button double-checks nothing client-side can
-// bypass server-side role checks on POST /api/boards.
-export default function NewProjectModal({ onClose, onCreated }) {
-  const navigate = useNavigate();
+export default function EditProjectModal({ board, onClose, onUpdated }) {
   const toast = useToast();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [color, setColor] = useState(PALETTE[0]);
+  const [title, setTitle] = useState(board?.title || "");
+  const [description, setDescription] = useState(board?.description || "");
+  const [dueDate, setDueDate] = useState(board?.dueDate || null);
+  const [color, setColor] = useState(board?.color || PALETTE[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   const submit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim()) {
+      setError("Project title is required.");
+      return;
+    }
+
     setLoading(true);
     setError("");
+
     try {
-      const res = await api.post("/boards", {
+      const res = await api.patch(`/boards/${board._id}`, {
         title: title.trim(),
         description: description.trim(),
-        dueDate: dueDate || undefined,
+        dueDate: dueDate || null,
         color,
       });
-      toast.success(`Project "${title}" created!`, { title: "Success" });
-      onCreated?.(res.data);
+
+      toast.success(`Project "${title.trim()}" updated successfully!`, { title: "Success" });
+      onUpdated?.(res.data);
       onClose();
-      navigate(`/boards/${res.data._id}`);
     } catch (err) {
-      const msg = err.response?.data?.message || "Couldn't create the project.";
+      const msg = err.response?.data?.message || "Failed to update project settings.";
       setError(msg);
       toast.error(msg, { title: "Error" });
     } finally {
@@ -49,9 +49,9 @@ export default function NewProjectModal({ onClose, onCreated }) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="New project"
+      aria-labelledby="edit-project-title"
       className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-[60] animate-in fade-in duration-200"
-      onClick={onClose}
+      onClick={!loading ? onClose : undefined}
     >
       <form
         onSubmit={submit}
@@ -59,12 +59,21 @@ export default function NewProjectModal({ onClose, onCreated }) {
         className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-pop text-ink"
       >
         <div className="flex items-center justify-between pb-3 border-b border-line mb-4">
-          <h3 className="text-base font-semibold text-ink">New project</h3>
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-full shrink-0 shadow-xs ring-2 ring-black/5"
+              style={{ backgroundColor: color }}
+            />
+            <h3 id="edit-project-title" className="text-base font-semibold text-ink">
+              Edit project
+            </h3>
+          </div>
           <button
             type="button"
             onClick={onClose}
+            disabled={loading}
             aria-label="Close modal"
-            className="w-10 h-10 -mr-2 shrink-0 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation"
+            className="w-10 h-10 -mr-2 shrink-0 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -141,13 +150,24 @@ export default function NewProjectModal({ onClose, onCreated }) {
           </div>
         </div>
 
-        <button
-          disabled={loading || !title.trim()}
-          className="btn-press w-full bg-accent hover:bg-accent-dark text-white text-sm font-semibold rounded-lg py-3 transition-colors disabled:opacity-50 touch-manipulation flex items-center justify-center gap-2 cursor-pointer"
-        >
-          {loading ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-          <span>{loading ? "Creating project…" : "Create project"}</span>
-        </button>
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-line/60">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={loading}
+            className="px-4 py-2.5 text-xs sm:text-sm font-medium rounded-lg bg-surface hover:bg-surface-2 text-ink border border-line transition-colors disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-accent/40 cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading || !title.trim()}
+            className="btn-press bg-accent hover:bg-accent-dark text-white text-xs sm:text-sm font-semibold rounded-lg px-4 py-2.5 transition-colors disabled:opacity-50 touch-manipulation flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+          >
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
+            <span>{loading ? "Saving changes…" : "Save changes"}</span>
+          </button>
+        </div>
       </form>
     </div>
   );

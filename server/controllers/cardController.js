@@ -10,6 +10,18 @@ const populateCard = (query) =>
     .populate("activityLog.user", "name avatarColor role")
     .populate("list", "title");
 
+export const filterCardActiveItems = (card) => {
+  if (!card) return null;
+  const obj = typeof card.toObject === "function" ? card.toObject() : { ...card };
+  if (obj.comments) {
+    obj.comments = obj.comments.filter((c) => !c.isDeleted);
+  }
+  if (obj.attachments) {
+    obj.attachments = obj.attachments.filter((a) => !a.isDeleted);
+  }
+  return obj;
+};
+
 // In-memory cache to prevent duplicate rapid requests (2s window)
 const recentCardCreations = new Map();
 
@@ -29,11 +41,11 @@ export const createCard = async (req, res) => {
       const existing = recentCardCreations.get(dedupeKey);
       if (now - existing.timestamp < 2000) {
         // Return existing created card to prevent duplicate creation
-        return res.status(200).json(existing.card);
+        return res.status(200).json(filterCardActiveItems(existing.card));
       }
     }
 
-    const count = await Card.countDocuments({ list });
+    const count = await Card.countDocuments({ list, isDeleted: { $ne: true } });
     const targetList = await List.findById(list);
 
     const card = await Card.create({
@@ -53,7 +65,8 @@ export const createCard = async (req, res) => {
     });
 
     const populated = await populateCard(Card.findById(card._id));
-    recentCardCreations.set(dedupeKey, { card: populated, timestamp: now });
+    const cleaned = filterCardActiveItems(populated);
+    recentCardCreations.set(dedupeKey, { card: cleaned, timestamp: now });
 
     // Clean up old cache entries periodically
     if (recentCardCreations.size > 200) {
@@ -64,7 +77,7 @@ export const createCard = async (req, res) => {
       }
     }
 
-    res.status(201).json(populated);
+    res.status(201).json(cleaned);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -73,9 +86,9 @@ export const createCard = async (req, res) => {
 // GET /api/cards/:id
 export const getCard = async (req, res) => {
   try {
-    const card = await populateCard(Card.findById(req.params.id));
+    const card = await populateCard(Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } }));
     if (!card) return res.status(404).json({ message: "Card not found" });
-    res.json(card);
+    res.json(filterCardActiveItems(card));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -185,7 +198,7 @@ export const updateCard = async (req, res) => {
 
     await card.save();
     const populated = await populateCard(Card.findById(card._id));
-    res.json(populated);
+    res.json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -195,7 +208,7 @@ export const updateCard = async (req, res) => {
 export const moveCard = async (req, res) => {
   try {
     const { list, order } = req.body;
-    const card = await Card.findById(req.params.id);
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!card) return res.status(404).json({ message: "Card not found" });
 
     if (list && list.toString() !== card.list.toString()) {
@@ -222,16 +235,23 @@ export const moveCard = async (req, res) => {
 
     await card.save();
     const populated = await populateCard(Card.findById(card._id));
-    res.json(populated);
+    res.json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// DELETE /api/cards/:id
+// DELETE /api/cards/:id  (SOFT DELETE ONLY)
 export const deleteCard = async (req, res) => {
   try {
-    await Card.findByIdAndDelete(req.params.id);
+    const card = await Card.findById(req.params.id);
+    if (!card || card.isDeleted) return res.status(404).json({ message: "Card not found" });
+
+    card.isDeleted = true;
+    card.deletedAt = new Date();
+    card.deletedBy = req.user._id;
+    await card.save();
+
     res.json({ message: "Card deleted" });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -241,7 +261,7 @@ export const deleteCard = async (req, res) => {
 // POST /api/cards/:id/comments  { text }
 export const addComment = async (req, res) => {
   try {
-    const card = await Card.findById(req.params.id);
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!card) return res.status(404).json({ message: "Card not found" });
 
     card.comments.push({
@@ -258,7 +278,7 @@ export const addComment = async (req, res) => {
 
     await card.save();
     const populated = await populateCard(Card.findById(card._id));
-    res.status(201).json(populated);
+    res.status(201).json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -267,11 +287,11 @@ export const addComment = async (req, res) => {
 // PATCH /api/cards/:id/comments/:commentId  { text }
 export const updateComment = async (req, res) => {
   try {
-    const card = await Card.findById(req.params.id);
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!card) return res.status(404).json({ message: "Card not found" });
 
     const comment = card.comments.id(req.params.commentId);
-    if (!comment) return res.status(404).json({ message: "Comment not found" });
+    if (!comment || comment.isDeleted) return res.status(404).json({ message: "Comment not found" });
 
     const isAuthor = comment.user.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
@@ -284,20 +304,20 @@ export const updateComment = async (req, res) => {
 
     await card.save();
     const populated = await populateCard(Card.findById(card._id));
-    res.json(populated);
+    res.json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// DELETE /api/cards/:id/comments/:commentId
+// DELETE /api/cards/:id/comments/:commentId  (SOFT DELETE ONLY)
 export const deleteComment = async (req, res) => {
   try {
-    const card = await Card.findById(req.params.id);
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!card) return res.status(404).json({ message: "Card not found" });
 
     const comment = card.comments.id(req.params.commentId);
-    if (!comment) return res.status(404).json({ message: "Comment not found" });
+    if (!comment || comment.isDeleted) return res.status(404).json({ message: "Comment not found" });
 
     const isAuthor = comment.user.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
@@ -305,11 +325,13 @@ export const deleteComment = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to delete this comment" });
     }
 
-    card.comments.pull({ _id: req.params.commentId });
+    comment.isDeleted = true;
+    comment.deletedAt = new Date();
+    comment.deletedBy = req.user._id;
     await card.save();
 
     const populated = await populateCard(Card.findById(card._id));
-    res.json(populated);
+    res.json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -318,7 +340,7 @@ export const deleteComment = async (req, res) => {
 // POST /api/cards/:id/attachments  { url, label }
 export const addAttachment = async (req, res) => {
   try {
-    const card = await Card.findById(req.params.id);
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!card) return res.status(404).json({ message: "Card not found" });
 
     const { url, label } = req.body;
@@ -327,6 +349,7 @@ export const addAttachment = async (req, res) => {
     // Deduplicate rapid duplicate link attachments (within 2 seconds)
     const recentLink = (card.attachments || []).slice(-3).find(
       (a) =>
+        !a.isDeleted &&
         a.type === "link" &&
         a.url === url &&
         a.addedBy?.toString() === req.user._id.toString() &&
@@ -335,7 +358,7 @@ export const addAttachment = async (req, res) => {
 
     if (recentLink) {
       const populated = await populateCard(Card.findById(card._id));
-      return res.status(200).json(populated);
+      return res.status(200).json(filterCardActiveItems(populated));
     }
 
     const attachment = {
@@ -356,7 +379,7 @@ export const addAttachment = async (req, res) => {
 
     await card.save();
     const populated = await populateCard(Card.findById(card._id));
-    res.status(201).json(populated);
+    res.status(201).json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -365,7 +388,7 @@ export const addAttachment = async (req, res) => {
 // POST /api/cards/:id/attachments/upload (multipart/form-data with file)
 export const uploadFileAttachment = async (req, res) => {
   try {
-    const card = await Card.findById(req.params.id);
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!card) return res.status(404).json({ message: "Card not found" });
 
     if (!req.file) {
@@ -378,6 +401,7 @@ export const uploadFileAttachment = async (req, res) => {
     // Deduplicate rapid duplicate file uploads (same originalName and size within 2 seconds)
     const recentFile = (card.attachments || []).slice(-3).find(
       (a) =>
+        !a.isDeleted &&
         a.type === "file" &&
         a.originalName === req.file.originalname &&
         a.size === req.file.size &&
@@ -387,7 +411,7 @@ export const uploadFileAttachment = async (req, res) => {
 
     if (recentFile) {
       const populated = await populateCard(Card.findById(card._id));
-      return res.status(200).json(populated);
+      return res.status(200).json(filterCardActiveItems(populated));
     }
 
     const attachment = {
@@ -412,20 +436,20 @@ export const uploadFileAttachment = async (req, res) => {
 
     await card.save();
     const populated = await populateCard(Card.findById(card._id));
-    res.status(201).json(populated);
+    res.status(201).json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// DELETE /api/cards/:id/attachments/:attachmentId
+// DELETE /api/cards/:id/attachments/:attachmentId  (SOFT DELETE ONLY)
 export const deleteAttachment = async (req, res) => {
   try {
-    const card = await Card.findById(req.params.id);
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
     if (!card) return res.status(404).json({ message: "Card not found" });
 
     const attachment = card.attachments.id(req.params.attachmentId);
-    if (!attachment) return res.status(404).json({ message: "Attachment not found" });
+    if (!attachment || attachment.isDeleted) return res.status(404).json({ message: "Attachment not found" });
 
     const isAuthor = attachment.addedBy?.toString() === req.user._id.toString();
     const isAdmin = req.user.role === "admin" || req.user.role === "superadmin";
@@ -433,11 +457,13 @@ export const deleteAttachment = async (req, res) => {
       return res.status(403).json({ message: "Not authorized to remove this attachment" });
     }
 
-    card.attachments.pull({ _id: req.params.attachmentId });
+    attachment.isDeleted = true;
+    attachment.deletedAt = new Date();
+    attachment.deletedBy = req.user._id;
     await card.save();
 
     const populated = await populateCard(Card.findById(card._id));
-    res.json(populated);
+    res.json(filterCardActiveItems(populated));
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -446,7 +472,7 @@ export const deleteAttachment = async (req, res) => {
 // GET /api/cards/mine  - "My Tasks" view across all boards for the logged-in user
 export const getMyCards = async (req, res) => {
   try {
-    const cards = await Card.find({ assignees: req.user._id })
+    const cards = await Card.find({ assignees: req.user._id, isDeleted: { $ne: true } })
       .populate("board", "title color")
       .populate("list", "title")
       .sort({ dueDate: 1 });

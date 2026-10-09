@@ -5,6 +5,9 @@ const listSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true },
     board: { type: mongoose.Schema.Types.ObjectId, ref: "Board", required: true },
     order: { type: Number, required: true },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
-import { Users, Plus, Tag, Loader2 } from "lucide-react";
+import { Users, Plus, Tag, Loader2, Archive, ArchiveRestore, ChevronDown, Calendar } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
@@ -11,6 +11,9 @@ import { boardGradient } from "../utils/color.js";
 import List from "../components/List.jsx";
 import CardModal from "../components/CardModal.jsx";
 import MembersPanel from "../components/MembersPanel.jsx";
+import EditProjectModal from "../components/EditProjectModal.jsx";
+import ConfirmationModal from "../components/ConfirmationModal.jsx";
+import InviteMemberModal from "../components/InviteMemberModal.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
 import BoardSkeleton from "../components/ui/BoardSkeleton.jsx";
 import { cardMatchesFilter } from "../utils/filter.js";
@@ -18,16 +21,25 @@ import { getLabelDotColor } from "../utils/labels.js";
 
 export default function BoardView() {
   const { id: boardId } = useParams();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
   const [board, setBoard] = useState(null);
   const [lists, setLists] = useState([]);
   const [activeCard, setActiveCard] = useState(null);
   const [showMembers, setShowMembers] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    type: null,
+    loading: false,
+  });
   const [newListTitle, setNewListTitle] = useState("");
   const [addingList, setAddingList] = useState(false);
   const [isSubmittingList, setIsSubmittingList] = useState(false);
   const [filters, setFilters] = useState({ members: [], priority: [], dueDate: [], labels: [] });
+  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const { setBoardHeaderData, clearBoardHeaderData } = useBoardHeader();
 
   const isManager =
@@ -57,9 +69,43 @@ export default function BoardView() {
       .catch((err) => {
         if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
           console.error("Failed to load board:", err);
+          if (err.response?.status === 404) {
+            toast.error("Board not found or has been removed.");
+            navigate("/");
+          }
         }
       });
-  }, [boardId]);
+  }, [boardId, navigate, toast]);
+
+  const handleConfirmAction = async () => {
+    if (!confirmModal.type || !board) return;
+    setConfirmModal((prev) => ({ ...prev, loading: true }));
+
+    try {
+      if (confirmModal.type === "archive") {
+        await api.patch(`/boards/${boardId}/archive`);
+        toast.success(`Project "${board.title}" archived successfully.`, { title: "Archived" });
+        setConfirmModal({ isOpen: false, type: null, loading: false });
+        navigate("/");
+        return;
+      } else if (confirmModal.type === "restore") {
+        await api.patch(`/boards/${boardId}/restore`);
+        toast.success(`Project "${board.title}" restored successfully.`, { title: "Restored" });
+        setConfirmModal({ isOpen: false, type: null, loading: false });
+        loadBoard();
+      } else if (confirmModal.type === "delete") {
+        await api.delete(`/boards/${boardId}`);
+        toast.success(`Project "${board.title}" deleted successfully.`, { title: "Deleted" });
+        setConfirmModal({ isOpen: false, type: null, loading: false });
+        navigate("/");
+        return;
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || `Failed to ${confirmModal.type} project.`;
+      toast.error(msg, { title: "Error" });
+      setConfirmModal((prev) => ({ ...prev, loading: false }));
+    }
+  };
 
   const loadLists = useCallback((signal = null) => {
     return api
@@ -372,6 +418,11 @@ export default function BoardView() {
         setFilters,
         isManager,
         onManageTeam: () => setShowMembers(true),
+        onInviteMember: () => setShowInviteModal(true),
+        onEditBoard: () => setShowEditModal(true),
+        onArchiveBoard: () => setConfirmModal({ isOpen: true, type: "archive", loading: false }),
+        onRestoreBoard: () => setConfirmModal({ isOpen: true, type: "restore", loading: false }),
+        onDeleteBoard: () => setConfirmModal({ isOpen: true, type: "delete", loading: false }),
       });
     }
     return () => {
@@ -455,6 +506,26 @@ export default function BoardView() {
       className="board-canvas min-h-[calc(100vh-56px)] flex flex-col"
       style={{ background: boardGradient(board.color) }}
     >
+      {/* Archived Project Banner */}
+      {board.archived && (
+        <div className="bg-amber-500/25 border-b border-amber-500/35 px-4 sm:px-6 py-2.5 backdrop-blur-md flex items-center justify-between gap-3 text-amber-950 text-xs sm:text-sm font-medium">
+          <div className="flex items-center gap-2">
+            <Archive size={16} className="text-amber-800 shrink-0" />
+            <span>This project is currently archived. It is hidden from the active dashboard.</span>
+          </div>
+          {isManager && (
+            <button
+              type="button"
+              onClick={() => setConfirmModal({ isOpen: true, type: "restore", loading: false })}
+              className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold text-xs transition-colors shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0"
+            >
+              <ArchiveRestore size={13} />
+              <span>Restore Project</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {/* Filter notice if all cards on the board are hidden */}
       {isFiltered && totalCardsCount > 0 && totalMatchingCardsCount === 0 && (
         <div className="px-4 sm:px-6 pt-3">
@@ -470,6 +541,74 @@ export default function BoardView() {
           </div>
         </div>
       )}
+
+      {/* Board Title & Description Header (Below Menubar) */}
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-1 sm:pb-2">
+        <div className="flex items-start gap-3 max-w-5xl">
+          {/* Vertical Project Accent Pill */}
+          <div
+            className="w-1.5 self-stretch rounded-full shrink-0 min-h-[28px] shadow-xs"
+            style={{ backgroundColor: board.color || "#EA580C" }}
+          />
+
+          <div className="flex-1 min-w-0 flex flex-col gap-1">
+            {/* Title & Status Badges */}
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+                {board.title}
+              </h1>
+
+              {board.dueDate && (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-surface/90 border border-line text-slate-700 shadow-xs">
+                  <Calendar size={12} className="text-orange-600" />
+                  <span>
+                    Due {new Date(board.dueDate).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    })}
+                  </span>
+                </span>
+              )}
+
+              {board.archived && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/30">
+                  Archived
+                </span>
+              )}
+            </div>
+
+            {/* Description Accordion */}
+            {board.description && (
+              <div className="mt-0.5">
+                <div
+                  className={`text-xs sm:text-sm text-slate-600 font-normal leading-relaxed whitespace-pre-wrap transition-all ${
+                    !isDescriptionExpanded ? "line-clamp-2" : ""
+                  }`}
+                >
+                  {board.description}
+                </div>
+
+                {(board.description.length > 120 || board.description.includes("\n")) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsDescriptionExpanded((prev) => !prev)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors mt-1 cursor-pointer select-none"
+                  >
+                    <span>{isDescriptionExpanded ? "Show less" : "Show more"}</span>
+                    <ChevronDown
+                      size={13}
+                      className={`transition-transform duration-200 ${
+                        isDescriptionExpanded ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Responsive Drag and Drop Board Canvas */}
       <DragDropContext onDragEnd={onDragEnd}>
@@ -597,6 +736,65 @@ export default function BoardView() {
             setBoard(updated);
             broadcastRefresh("board:changed");
           }}
+        />
+      )}
+
+      {showInviteModal && board && (
+        <InviteMemberModal
+          defaultBoardId={board._id}
+          onClose={() => setShowInviteModal(false)}
+          onInvited={() => {
+            loadBoard();
+            broadcastRefresh("board:changed");
+          }}
+        />
+      )}
+
+      {showEditModal && board && (
+        <EditProjectModal
+          board={board}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={(updated) => {
+            setBoard(updated);
+            broadcastRefresh("board:changed");
+          }}
+        />
+      )}
+
+      {confirmModal.isOpen && (
+        <ConfirmationModal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal({ isOpen: false, type: null, loading: false })}
+          onConfirm={handleConfirmAction}
+          loading={confirmModal.loading}
+          variant={
+            confirmModal.type === "delete"
+              ? "destructive"
+              : confirmModal.type === "archive"
+              ? "warning"
+              : "primary"
+          }
+          title={
+            confirmModal.type === "archive"
+              ? `Archive "${board.title}"?`
+              : confirmModal.type === "delete"
+              ? `Delete "${board.title}"?`
+              : `Restore "${board.title}"?`
+          }
+          message={
+            confirmModal.type === "archive"
+              ? `Are you sure you want to archive "${board.title}"? It will be moved to the Archived Projects section and hidden from the active dashboard. You can restore it at any time.`
+              : confirmModal.type === "delete"
+              ? `Are you sure you want to delete "${board.title}"? It will be removed from normal views. All project data and records are preserved safely in the database via soft delete and remain recoverable.`
+              : `Are you sure you want to restore "${board.title}"? It will be moved back to the Active Projects dashboard.`
+          }
+          confirmText={
+            confirmModal.type === "archive"
+              ? "Archive Project"
+              : confirmModal.type === "delete"
+              ? "Delete Project"
+              : "Restore Project"
+          }
         />
       )}
     </div>

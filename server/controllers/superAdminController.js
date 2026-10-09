@@ -8,7 +8,7 @@ export const getUsers = async (req, res) => {
   try {
     const { status, role, search } = req.query;
 
-    const query = {};
+    const query = { isDeleted: { $ne: true } };
 
     if (status && status !== "all") {
       if (status === "approved") {
@@ -34,7 +34,7 @@ export const getUsers = async (req, res) => {
       .sort({ createdAt: -1 });
 
     // Aggregate overall statistics
-    const allUsers = await User.find({}, "role status");
+    const allUsers = await User.find({ isDeleted: { $ne: true } }, "role status");
     const stats = {
       total: allUsers.length,
       pending: allUsers.filter((u) => u.status === "pending").length,
@@ -262,8 +262,15 @@ export const deleteUser = async (req, res) => {
       { $pull: { assignees: req.params.id } }
     );
 
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ message: `User ${user.name} has been deleted.` });
+    // Soft delete only: never permanently delete any user record
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+    user.deletedBy = req.user._id;
+    user.status = "rejected";
+    user.rejectionReason = "Account deactivated by Super Administrator.";
+    await user.save();
+
+    res.json({ message: `User ${user.name} has been deleted (soft deleted).` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

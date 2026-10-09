@@ -1,9 +1,12 @@
 import express from "express";
 import {
   getBoards,
+  getArchivedBoards,
   getBoard,
   createBoard,
   updateBoard,
+  archiveBoard,
+  restoreBoard,
   deleteBoard,
   addMember,
   updateMemberRole,
@@ -19,9 +22,12 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/", getBoards);
+router.get("/archived", getArchivedBoards);
 router.post("/", createBoard);
 router.get("/:id", boardMember, getBoard);
 router.patch("/:id", boardMember, boardManager, updateBoard);
+router.patch("/:id/archive", boardMember, boardManager, archiveBoard);
+router.patch("/:id/restore", boardMember, boardManager, restoreBoard);
 router.delete("/:id", boardMember, boardManager, deleteBoard);
 router.post("/:id/members", boardMember, boardManager, addMember);
 router.patch("/:id/members/:userId", boardMember, boardManager, updateMemberRole);

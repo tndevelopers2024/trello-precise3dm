@@ -102,6 +102,13 @@ export const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
+    if (user.isDeleted) {
+      return res.status(403).json({
+        message: "This account has been deactivated. Please contact your administrator.",
+        status: "deactivated",
+      });
+    }
+
     if (!user.password) {
       return res.status(403).json({
         message:
@@ -160,7 +167,7 @@ export const getMe = async (req, res) => {
 
 // GET /api/auth/users
 export const listUsers = async (req, res) => {
-  const users = await User.find().select(
+  const users = await User.find({ isDeleted: { $ne: true } }).select(
     "name email role status avatarColor createdAt approvedAt rejectedAt rejectionReason"
   );
   res.json(users);

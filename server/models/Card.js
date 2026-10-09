@@ -41,6 +41,9 @@ const cardSchema = new mongoose.Schema(
         size: { type: Number, default: 0 },
         addedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
         createdAt: { type: Date, default: Date.now },
+        isDeleted: { type: Boolean, default: false },
+        deletedAt: { type: Date },
+        deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       },
     ],
     comments: [
@@ -49,6 +52,9 @@ const cardSchema = new mongoose.Schema(
         text: { type: String, required: true },
         createdAt: { type: Date, default: Date.now },
         editedAt: { type: Date },
+        isDeleted: { type: Boolean, default: false },
+        deletedAt: { type: Date },
+        deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       },
     ],
     activityLog: [
@@ -60,6 +66,9 @@ const cardSchema = new mongoose.Schema(
       },
     ],
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date },
+    deletedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
   },
   { timestamps: true }
 );

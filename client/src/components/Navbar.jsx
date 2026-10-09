@@ -13,6 +13,12 @@ import {
   Layers,
   Sparkles,
   KeyRound,
+  MoreVertical,
+  Edit3,
+  Archive,
+  ArchiveRestore,
+  Trash2,
+  UserPlus,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
@@ -29,10 +35,12 @@ export default function Navbar() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [showSignoutModal, setShowSignoutModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
 
   const profileMenuRef = useRef(null);
+  const projectMenuRef = useRef(null);
   const mobileMenuRef = useRef(null);
 
   // Consume board header data (available when inside a BoardView)
@@ -43,6 +51,9 @@ export default function Navbar() {
     function handleClickOutside(event) {
       if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
         setProfileDropdownOpen(false);
+      }
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target)) {
+        setProjectMenuOpen(false);
       }
       if (
         mobileMenuOpen &&
@@ -67,6 +78,7 @@ export default function Navbar() {
     function handleKeyDown(e) {
       if (e.key === "Escape") {
         setProfileDropdownOpen(false);
+        setProjectMenuOpen(false);
         setMobileMenuOpen(false);
       }
     }
@@ -152,27 +164,6 @@ export default function Navbar() {
                 </Link>
               )}
             </nav>
-
-            {/* Board Context Indicator (When inside a Board) */}
-            {isBoardView && (
-              <>
-                <div className="hidden md:block w-px h-5 bg-line/80 shrink-0" />
-
-                <div
-                  className="min-w-0 h-9 flex items-center gap-2 bg-surface-2/70 hover:bg-surface-2 border border-line/70 rounded-xl px-3 transition-colors shadow-xs"
-                  title={board.description ? `${board.title} — ${board.description}` : board.title}
-                >
-                  <span
-                    className="w-2.5 h-2.5 rounded-full ring-2 ring-black/5 shrink-0 shadow-xs"
-                    style={{ backgroundColor: board.color || "#EA580C" }}
-                  />
-
-                  <h1 className="text-xs sm:text-sm font-semibold text-slate-800 tracking-tight truncate max-w-[160px] sm:max-w-[220px] md:max-w-[280px] lg:max-w-[360px] xl:max-w-[440px]">
-                    {board.title}
-                  </h1>
-                </div>
-              </>
-            )}
           </div>
 
           {/* ================= RIGHT SECTION: BOARD ACTIONS & PROFILE ================= */}
@@ -201,16 +192,114 @@ export default function Navbar() {
 
                 {/* Manage Team Button */}
                 {boardHeaderData.isManager && (
-                  <button
-                    type="button"
-                    onClick={boardHeaderData.onManageTeam}
-                    className="btn-press h-9 text-xs font-semibold text-slate-700 bg-surface hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300 border border-line shadow-xs rounded-xl px-3 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500/30 flex items-center gap-1.5 cursor-pointer select-none"
-                    title="Manage team members & roles"
-                  >
-                    <Users size={14} className="shrink-0 text-slate-400 group-hover:text-orange-500" />
-                    <span className="hidden lg:inline">Manage team</span>
-                    <span className="lg:hidden">Team</span>
-                  </button>
+                  <>
+                    {/* Invite Member Button right in the menu bar */}
+                    <button
+                      type="button"
+                      onClick={boardHeaderData.onInviteMember}
+                      className="btn-press h-9 text-xs font-semibold text-slate-700 bg-surface hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300 border border-line shadow-xs rounded-xl px-3 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500/30 flex items-center gap-1.5 cursor-pointer select-none"
+                      title="Invite new employee or manager to this project"
+                    >
+                      <UserPlus size={14} className="shrink-0 text-orange-600" />
+                      <span className="hidden lg:inline">Invite member</span>
+                      <span className="lg:hidden">Invite</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={boardHeaderData.onManageTeam}
+                      className="btn-press h-9 text-xs font-semibold text-slate-700 bg-surface hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300 border border-line shadow-xs rounded-xl px-3 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500/30 flex items-center gap-1.5 cursor-pointer select-none"
+                      title="Manage team members & roles"
+                    >
+                      <Users size={14} className="shrink-0 text-slate-400 group-hover:text-orange-500" />
+                      <span className="hidden lg:inline">Manage team</span>
+                      <span className="lg:hidden">Team</span>
+                    </button>
+
+                    {/* Project Options Menu */}
+                    <div className="relative" ref={projectMenuRef}>
+                      <button
+                        type="button"
+                        onClick={() => setProjectMenuOpen((prev) => !prev)}
+                        className="btn-press h-9 text-xs font-semibold text-slate-700 bg-surface hover:bg-orange-50 hover:text-orange-700 hover:border-orange-300 border border-line shadow-xs rounded-xl px-2.5 transition-all focus:outline-none focus:ring-2 focus:ring-orange-500/30 flex items-center gap-1 cursor-pointer select-none"
+                        title="Project settings & actions"
+                      >
+                        <MoreVertical size={14} className="shrink-0 text-slate-400 group-hover:text-orange-500" />
+                        <span className="hidden xl:inline">Project</span>
+                      </button>
+
+                      {projectMenuOpen && (
+                        <div
+                          className="absolute right-0 top-11 z-50 w-48 rounded-xl bg-surface border border-line p-1 shadow-pop text-ink animate-in fade-in zoom-in-95"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProjectMenuOpen(false);
+                              boardHeaderData.onInviteMember?.();
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 hover:text-orange-700 hover:bg-orange-50/70 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <UserPlus size={14} className="text-orange-600" />
+                            <span>Invite member</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProjectMenuOpen(false);
+                              boardHeaderData.onEditBoard?.();
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-ink hover:bg-surface-2 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Edit3 size={14} className="text-muted" />
+                            <span>Edit project</span>
+                          </button>
+
+                          {board.archived ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProjectMenuOpen(false);
+                                boardHeaderData.onRestoreBoard?.();
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <ArchiveRestore size={14} className="text-emerald-600" />
+                              <span>Restore project</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProjectMenuOpen(false);
+                                boardHeaderData.onArchiveBoard?.();
+                              }}
+                              className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                            >
+                              <Archive size={14} className="text-amber-600" />
+                              <span>Archive project</span>
+                            </button>
+                          )}
+
+                          <div className="h-px bg-line/60 my-1" />
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProjectMenuOpen(false);
+                              boardHeaderData.onDeleteBoard?.();
+                            }}
+                            className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={14} className="text-rose-500" />
+                            <span>Delete project</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </>
                 )}
 
                 <div className="w-px h-5 bg-line/80 mx-0.5 shrink-0" />
@@ -445,17 +534,31 @@ export default function Navbar() {
                   </div>
 
                   {boardHeaderData.isManager && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMobileMenuOpen(false);
-                        boardHeaderData.onManageTeam?.();
-                      }}
-                      className="text-xs font-semibold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      <Users size={12} />
-                      <span>Manage team</span>
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          boardHeaderData.onInviteMember?.();
+                        }}
+                        className="text-xs font-semibold text-orange-600 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <UserPlus size={12} />
+                        <span>Invite member</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          boardHeaderData.onManageTeam?.();
+                        }}
+                        className="text-xs font-semibold text-slate-700 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <Users size={12} />
+                        <span>Manage team</span>
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
