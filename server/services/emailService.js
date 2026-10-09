@@ -75,7 +75,12 @@ const getClientUrl = () => {
 export const sendInvitationEmail = async ({ to, name, token, inviterName, role }) => {
   const clientUrl = getClientUrl();
   const activationUrl = `${clientUrl}/activate?token=${encodeURIComponent(token)}`;
-  const roleLabel = role === "admin" ? "Project Manager (Admin)" : "Team Member";
+  const roleLabel =
+    role === "superadmin"
+      ? "Super Administrator"
+      : role === "admin"
+      ? "Project Manager (Admin)"
+      : "Team Member";
   const inviterText = inviterName ? ` by <strong>${inviterName}</strong>` : "";
 
   const subject = "Invitation to join Precise3DM Workspace";
@@ -197,7 +202,12 @@ Security Notice: This link is unique and one-time use. Never share this email.
 export const sendActivationEmail = async ({ to, name, token, role }) => {
   const clientUrl = getClientUrl();
   const activationUrl = `${clientUrl}/activate?token=${encodeURIComponent(token)}`;
-  const roleLabel = role === "admin" ? "Project Manager (Admin)" : "Team Member";
+  const roleLabel =
+    role === "superadmin"
+      ? "Super Administrator"
+      : role === "admin"
+      ? "Project Manager (Admin)"
+      : "Team Member";
 
   const subject = "Activate your Precise3DM Workspace Account";
 

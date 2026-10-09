@@ -393,9 +393,17 @@ export default function Navbar() {
                   <p className="text-[11px] text-muted">{user?.email}</p>
                 </div>
               </div>
-              {user?.role === "admin" && (
+              {user?.role === "superadmin" ? (
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-700 border border-purple-500/20">
+                  SUPER ADMIN
+                </span>
+              ) : user?.role === "admin" ? (
                 <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-700 border border-orange-500/20">
                   PM
+                </span>
+              ) : (
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                  MEMBER
                 </span>
               )}
             </div>

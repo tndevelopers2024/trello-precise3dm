@@ -2317,7 +2317,7 @@ export default function CardModal({
                   if (item.type === "comment") {
                     const c = item.data;
                     const isAuthor = c.user?._id === user?._id;
-                    const canManage = isAuthor || user?.role === "admin";
+                    const canManage = isAuthor || user?.role === "admin" || user?.role === "superadmin";
                     const isEditing = editingCommentId === c._id;
 
                     return (

@@ -51,8 +51,8 @@ export default function ProjectSwitcherBar() {
             })}
           </div>
 
-          {/* Sticky / Dedicated Add Project Button for PMs */}
-          {user?.role === "admin" && (
+          {/* Sticky / Dedicated Add Project Button for PMs & Super Admin */}
+          {(user?.role === "admin" || user?.role === "superadmin") && (
             <div className="shrink-0 pl-1 border-l border-line/60">
               <button
                 onClick={() => setShowNewProject(true)}

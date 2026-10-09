@@ -47,7 +47,7 @@ export default function MembersPanel({ board, onClose, onChanged }) {
     value: u._id,
     label: u.name,
     sublabel: u.email,
-    badge: u.role === "admin" ? "PM" : "Employee",
+    badge: u.role === "superadmin" ? "Super Admin" : u.role === "admin" ? "PM" : "Employee",
     avatarColor: u.avatarColor || "#0C66E4",
     avatarInitial: u.name?.[0]?.toUpperCase(),
   }));
@@ -172,14 +172,21 @@ export default function MembersPanel({ board, onClose, onChanged }) {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <p className="text-sm font-medium text-ink truncate">{m.user.name}</p>
-                      {m.user.role === "admin" && (
+                      {m.user.role === "superadmin" ? (
+                        <span
+                          className="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-purple-500/20 text-purple-700 font-semibold shrink-0"
+                          title="Workspace Super Admin"
+                        >
+                          SUPER ADMIN
+                        </span>
+                      ) : m.user.role === "admin" ? (
                         <span
                           className="text-[10px] uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-accent/20 text-accent font-semibold shrink-0"
                           title="Workspace PM"
                         >
                           PM
                         </span>
-                      )}
+                      ) : null}
                     </div>
                     <p className="text-[11px] text-muted truncate">{m.user.email}</p>
                   </div>

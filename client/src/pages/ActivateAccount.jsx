@@ -254,7 +254,7 @@ export default function ActivateAccount() {
                     <p className="text-[11px] text-slate-500 truncate">{userInfo.email}</p>
                   </div>
                   <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded bg-orange-500/10 text-orange-700 border border-orange-500/20">
-                    {userInfo.role === "admin" ? "PM" : "MEMBER"}
+                    {userInfo.role === "superadmin" ? "SUPER ADMIN" : userInfo.role === "admin" ? "PM" : "MEMBER"}
                   </span>
                 </div>
               )}

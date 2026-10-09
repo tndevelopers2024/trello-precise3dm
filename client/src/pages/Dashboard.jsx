@@ -58,7 +58,7 @@ export default function Dashboard() {
         options: allUsers.map((u) => ({
           value: u._id,
           label: u.name,
-          badge: u.role === "admin" ? "PM" : "Employee",
+          badge: u.role === "superadmin" ? "Super Admin" : u.role === "admin" ? "PM" : "Employee",
           avatarInitial: u.name?.[0]?.toUpperCase(),
           avatarColor: u.avatarColor || "#EA580C",
         })),
@@ -112,7 +112,7 @@ export default function Dashboard() {
             </span>
           </h1>
           <p className="text-xs sm:text-sm text-muted max-w-xl">
-            {user?.role === "admin"
+            {user?.role === "admin" || user?.role === "superadmin"
               ? "Oversee 3D engineering deliverables, track milestones, and manage team boards."
               : "Access your assigned project boards, deliverables, and engineering tasks."}
           </p>
@@ -152,7 +152,7 @@ export default function Dashboard() {
             align="right"
           />
 
-          {user?.role === "admin" && (
+          {(user?.role === "admin" || user?.role === "superadmin") && (
             <>
               <button
                 type="button"
@@ -185,11 +185,11 @@ export default function Dashboard() {
           </div>
           <h3 className="text-base sm:text-lg font-bold text-ink">No projects yet</h3>
           <p className="text-xs sm:text-sm text-muted mt-1.5 max-w-md mx-auto leading-relaxed">
-            {user?.role === "admin"
+            {user?.role === "admin" || user?.role === "superadmin"
               ? "Create your first precise3dm project board to start assigning 3D deliverables, tracking phases, and collaborating with your team."
               : "You haven't been assigned to any workspace projects yet. Contact your project manager."}
           </p>
-          {user?.role === "admin" && (
+          {(user?.role === "admin" || user?.role === "superadmin") && (
             <button
               type="button"
               onClick={() => setShowNewProject(true)}
