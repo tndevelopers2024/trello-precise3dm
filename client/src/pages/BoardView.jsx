@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import { useSocket } from "../hooks/useSocket.js";
 import { useBoardHeader } from "../context/BoardHeaderContext.jsx";
+import { useProjects } from "../context/ProjectsContext.jsx";
 import { boardGradient } from "../utils/color.js";
 import List from "../components/List.jsx";
 import CardModal from "../components/CardModal.jsx";
@@ -24,6 +25,7 @@ export default function BoardView() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const { fetchBoards, updateBoard, removeBoard } = useProjects();
   const [board, setBoard] = useState(null);
   const [lists, setLists] = useState([]);
   const [activeCard, setActiveCard] = useState(null);
@@ -65,7 +67,10 @@ export default function BoardView() {
   const loadBoard = useCallback((signal = null) => {
     return api
       .get(`/boards/${boardId}`, { signal })
-      .then((res) => setBoard(res.data))
+      .then((res) => {
+        setBoard(res.data);
+        updateBoard(res.data);
+      })
       .catch((err) => {
         if (err.name !== "CanceledError" && err.code !== "ERR_CANCELED") {
           console.error("Failed to load board:", err);
@@ -75,7 +80,7 @@ export default function BoardView() {
           }
         }
       });
-  }, [boardId, navigate, toast]);
+  }, [boardId, navigate, toast, updateBoard]);
 
   const handleConfirmAction = async () => {
     if (!confirmModal.type || !board) return;
@@ -86,17 +91,22 @@ export default function BoardView() {
         await api.patch(`/boards/${boardId}/archive`);
         toast.success(`Project "${board.title}" archived successfully.`, { title: "Archived" });
         setConfirmModal({ isOpen: false, type: null, loading: false });
+        removeBoard(boardId);
+        fetchBoards(true);
         navigate("/");
         return;
       } else if (confirmModal.type === "restore") {
         await api.patch(`/boards/${boardId}/restore`);
         toast.success(`Project "${board.title}" restored successfully.`, { title: "Restored" });
         setConfirmModal({ isOpen: false, type: null, loading: false });
+        fetchBoards(true);
         loadBoard();
       } else if (confirmModal.type === "delete") {
         await api.delete(`/boards/${boardId}`);
         toast.success(`Project "${board.title}" deleted successfully.`, { title: "Deleted" });
         setConfirmModal({ isOpen: false, type: null, loading: false });
+        removeBoard(boardId);
+        fetchBoards(true);
         navigate("/");
         return;
       }
@@ -127,6 +137,16 @@ export default function BoardView() {
       controller.abort();
     };
   }, [boardId, loadBoard, loadLists]);
+
+  useEffect(() => {
+    const handleRefresh = (e) => {
+      if (!e.detail?.boardId || e.detail.boardId === boardId) {
+        loadLists();
+      }
+    };
+    window.addEventListener("refresh-board-lists", handleRefresh);
+    return () => window.removeEventListener("refresh-board-lists", handleRefresh);
+  }, [boardId, loadLists]);
 
   const { emitAction } = useSocket(boardId, {
     "lists:changed": loadLists,
@@ -503,7 +523,7 @@ export default function BoardView() {
 
   return (
     <div
-      className="board-canvas min-h-[calc(100vh-56px)] flex flex-col"
+      className="board-canvas min-h-[calc(100dvh-56px)] flex flex-col pb-16 sm:pb-20"
       style={{ background: boardGradient(board.color) }}
     >
       {/* Archived Project Banner */}
@@ -543,8 +563,8 @@ export default function BoardView() {
       )}
 
       {/* Board Title & Description Header (Below Menubar) */}
-      <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-1 sm:pb-2">
-        <div className="flex items-start gap-3 max-w-5xl">
+      <div className="px-2.5 xs:px-4 sm:px-6 pt-3 xs:pt-4 sm:pt-5 pb-1 sm:pb-2">
+        <div className="flex items-start gap-2.5 xs:gap-3 max-w-5xl">
           {/* Vertical Project Accent Pill */}
           <div
             className="w-1.5 self-stretch rounded-full shrink-0 min-h-[28px] shadow-xs"
@@ -553,8 +573,8 @@ export default function BoardView() {
 
           <div className="flex-1 min-w-0 flex flex-col gap-1">
             {/* Title & Status Badges */}
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
+            <div className="flex items-center gap-2 xs:gap-2.5 flex-wrap">
+              <h1 className="text-base xs:text-xl sm:text-2xl font-bold text-slate-900 tracking-tight break-words">
                 {board.title}
               </h1>
 
@@ -613,10 +633,10 @@ export default function BoardView() {
       {/* Responsive Drag and Drop Board Canvas */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div
-          className="flex-1 overflow-x-auto scrollbar-hide px-4 sm:px-6 py-4 sm:py-5 min-h-0"
+          className="flex-1 overflow-x-auto scrollbar-hide px-3 sm:px-6 py-2 sm:py-4 min-h-0"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <div className="flex gap-4 h-full items-start pb-4 min-w-full w-max pr-16 sm:pr-28">
+          <div className="flex gap-3 sm:gap-4 h-full items-start pb-4 min-w-full w-max pr-16 sm:pr-28">
             <Droppable droppableId="board-columns" direction="horizontal" type="column">
               {(provided, snapshot) => (
                 <div
@@ -756,6 +776,8 @@ export default function BoardView() {
           onClose={() => setShowEditModal(false)}
           onUpdated={(updated) => {
             setBoard(updated);
+            updateBoard(updated);
+            fetchBoards(true);
             broadcastRefresh("board:changed");
           }}
         />

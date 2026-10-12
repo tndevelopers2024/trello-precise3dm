@@ -145,6 +145,13 @@ function renderActivityText(activity) {
           <span className="font-medium text-accent">"{activity.meta?.label || activity.meta?.url}"</span>
         </span>
       );
+    case "attachment_renamed":
+      return (
+        <span className="text-muted">
+          <span className="font-semibold text-ink">{userName}</span> renamed attachment to{" "}
+          <span className="font-medium text-accent">"{activity.meta?.to}"</span>
+        </span>
+      );
     case "comment_added":
       return (
         <span className="text-muted">
@@ -207,8 +214,15 @@ export default function CardModal({
   const [isCreatingChecklist, setIsCreatingChecklist] = useState(false);
   const [editingChecklistKey, setEditingChecklistKey] = useState(null);
   const [editingChecklistTitle, setEditingChecklistTitle] = useState("");
+  const [editingItemKey, setEditingItemKey] = useState(null);
+  const [editingItemText, setEditingItemText] = useState("");
   const [newItemInputs, setNewItemInputs] = useState({});
   const [memberSearchModal, setMemberSearchModal] = useState("");
+
+  // Attachment rename state
+  const [editingAttachmentId, setEditingAttachmentId] = useState(null);
+  const [editingAttachmentName, setEditingAttachmentName] = useState("");
+  const [isRenamingAttachment, setIsRenamingAttachment] = useState(false);
 
   // Comments state
   const [commentText, setCommentText] = useState("");
@@ -542,6 +556,35 @@ export default function CardModal({
     save({ checklists: updated });
   };
 
+  const handleStartEditChecklistItem = (itemKey, currentText) => {
+    setEditingItemKey(itemKey);
+    setEditingItemText(currentText);
+  };
+
+  const handleSaveChecklistItem = async (checklistId, clIndex, itemIndex) => {
+    const text = editingItemText.trim();
+    if (!text) {
+      toast.error("Checklist item text cannot be empty");
+      return;
+    }
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = currentChecklists.map((cl, idx) => {
+      const match = (cl._id && String(cl._id) === String(checklistId)) || idx === clIndex;
+      if (match) {
+        const nextItems = [...(cl.items || [])];
+        if (nextItems[itemIndex]) {
+          nextItems[itemIndex] = { ...nextItems[itemIndex], text };
+        }
+        return { ...cl, items: nextItems };
+      }
+      return cl;
+    });
+    await save({ checklists: updated });
+    setEditingItemKey(null);
+    setEditingItemText("");
+    toast.success("Checklist item updated");
+  };
+
   // Attachments actions
   const handleFileUpload = async (e) => {
     e?.preventDefault();
@@ -620,6 +663,34 @@ export default function CardModal({
       message: `Remove "${label || "this attachment"}" from card attachments?`,
       loading: false,
     });
+  };
+
+  const handleStartEditAttachment = (att) => {
+    setEditingAttachmentId(att._id);
+    setEditingAttachmentName(att.label || att.originalName || att.url || "");
+  };
+
+  const handleSaveAttachmentName = async (attachmentId) => {
+    const newName = editingAttachmentName.trim();
+    if (!newName) {
+      toast.error("Attachment name cannot be empty");
+      return;
+    }
+    setIsRenamingAttachment(true);
+    try {
+      const res = await api.patch(`/cards/${cardId}/attachments/${attachmentId}`, {
+        label: newName,
+      });
+      setCard(res.data);
+      onChanged();
+      setEditingAttachmentId(null);
+      setEditingAttachmentName("");
+      toast.success("Attachment renamed successfully");
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to rename attachment");
+    } finally {
+      setIsRenamingAttachment(false);
+    }
   };
 
   // Comments actions
@@ -1958,81 +2029,160 @@ export default function CardModal({
                           : att.url
                         : "";
 
+                      const isEditingThis = editingAttachmentId === att._id;
+
                       return (
                         <div
                           key={att._id}
-                          className="group flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface-2 border border-line hover:border-accent/40 transition-colors overflow-hidden"
+                          className="group flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 p-2.5 rounded-xl bg-surface-2 border border-line hover:border-accent/40 transition-colors overflow-hidden"
                         >
-                          <div
-                            onClick={() => setPreviewAttachment(att)}
-                            className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden cursor-pointer"
-                            title={`Preview ${displayName}`}
-                          >
-                            <div className="w-8 h-8 rounded-lg bg-surface border border-line flex items-center justify-center shrink-0 shadow-sm">
-                              {fileInfo.icon}
-                            </div>
-                            <div className="min-w-0 flex-1 overflow-hidden">
-                              <p className="text-xs sm:text-sm font-semibold text-ink hover:text-accent transition-colors break-words break-all line-clamp-2 leading-tight">
-                                {displayName}
-                              </p>
-                              <div className="flex items-center gap-1.5 text-[10.5px] text-muted mt-0.5 flex-wrap">
-                                <span className="font-semibold uppercase tracking-wider text-[9px] px-1 py-0.2 rounded bg-surface border border-line">
-                                  {fileInfo.label}
-                                </span>
-                                {att.size > 0 && (
-                                  <span>• {formatFileSize(att.size)}</span>
-                                )}
-                                <span>• Added {formatRelativeTime(att.createdAt)}</span>
+                          {isEditingThis ? (
+                            <form
+                              onSubmit={(e) => {
+                                e.preventDefault();
+                                handleSaveAttachmentName(att._id);
+                              }}
+                              className="flex items-center gap-2 w-full flex-1"
+                            >
+                              <div className="w-8 h-8 rounded-lg bg-surface border border-line flex items-center justify-center shrink-0 shadow-sm">
+                                {fileInfo.icon}
                               </div>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => setPreviewAttachment(att)}
-                              className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer"
-                              title="Preview attachment"
-                              aria-label="Preview attachment"
-                            >
-                              <Eye size={14} />
-                            </button>
-
-                            {isServerFile ? (
-                              <a
-                                href={fullUrl}
-                                download={att.originalName || displayName}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer"
-                                title="Download file"
-                                aria-label="Download file"
+                              <input
+                                autoFocus
+                                value={editingAttachmentName}
+                                onChange={(e) => setEditingAttachmentName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleSaveAttachmentName(att._id);
+                                  } else if (e.key === "Escape") {
+                                    setEditingAttachmentId(null);
+                                    setEditingAttachmentName("");
+                                  }
+                                }}
+                                disabled={isRenamingAttachment}
+                                placeholder="Rename attachment..."
+                                aria-label="Rename attachment"
+                                className={`${fieldClass} py-1.5 px-3 text-xs sm:text-sm font-semibold rounded-lg bg-surface flex-1 min-w-0`}
+                              />
+                              <button
+                                type="submit"
+                                disabled={isRenamingAttachment}
+                                className="px-3 py-1.5 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors cursor-pointer shadow-xs shrink-0 flex items-center gap-1.5 disabled:opacity-60 active:scale-95"
                               >
-                                <Download size={14} />
-                              </a>
-                            ) : (
-                              <a
-                                href={fullUrl}
-                                target="_blank"
-                                rel="noreferrer noopener"
-                                className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer"
-                                title="Open link"
-                                aria-label="Open link"
+                                {isRenamingAttachment ? (
+                                  <Loader2 size={12} className="animate-spin" />
+                                ) : (
+                                  <Check size={13} strokeWidth={2.5} />
+                                )}
+                                <span>Save</span>
+                              </button>
+                              <button
+                                type="button"
+                                disabled={isRenamingAttachment}
+                                onClick={() => {
+                                  setEditingAttachmentId(null);
+                                  setEditingAttachmentName("");
+                                }}
+                                className="px-2.5 py-1.5 text-xs text-muted hover:text-ink transition-colors cursor-pointer shrink-0"
                               >
-                                <ExternalLink size={14} />
-                              </a>
-                            )}
+                                Cancel
+                              </button>
+                            </form>
+                          ) : (
+                            <>
+                              <div
+                                onClick={() => setPreviewAttachment(att)}
+                                className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden cursor-pointer"
+                                title={`Preview ${displayName}`}
+                              >
+                                <div className="w-8 h-8 rounded-lg bg-surface border border-line flex items-center justify-center shrink-0 shadow-sm">
+                                  {fileInfo.icon}
+                                </div>
+                                <div className="min-w-0 flex-1 overflow-hidden">
+                                  <p
+                                    onDoubleClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStartEditAttachment(att);
+                                    }}
+                                    title="Double-click or click edit icon to rename"
+                                    className="text-xs sm:text-sm font-semibold text-ink hover:text-accent transition-colors break-words break-all line-clamp-2 leading-tight"
+                                  >
+                                    {displayName}
+                                  </p>
+                                  <div className="flex items-center gap-1.5 text-[10.5px] text-muted mt-0.5 flex-wrap">
+                                    <span className="font-semibold uppercase tracking-wider text-[9px] px-1 py-0.2 rounded bg-surface border border-line">
+                                      {fileInfo.label}
+                                    </span>
+                                    {att.size > 0 && (
+                                      <span>• {formatFileSize(att.size)}</span>
+                                    )}
+                                    <span>• Added {formatRelativeTime(att.createdAt)}</span>
+                                  </div>
+                                </div>
+                              </div>
 
-                            <button
-                              type="button"
-                              onClick={() => confirmDeleteAttachment(att._id, displayName)}
-                              className="p-1.5 text-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-xs cursor-pointer"
-                              title="Remove attachment"
-                              aria-label="Remove attachment"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
+                              <div className="flex items-center gap-1 shrink-0 self-end sm:self-auto">
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleStartEditAttachment(att);
+                                  }}
+                                  className="p-1.5 text-muted hover:text-accent hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer touch-manipulation"
+                                  title="Rename attachment"
+                                  aria-label="Rename attachment"
+                                >
+                                  <Pencil size={14} />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setPreviewAttachment(att)}
+                                  className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer touch-manipulation"
+                                  title="Preview attachment"
+                                  aria-label="Preview attachment"
+                                >
+                                  <Eye size={14} />
+                                </button>
+
+                                {isServerFile ? (
+                                  <a
+                                    href={fullUrl}
+                                    download={att.originalName || displayName}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer touch-manipulation"
+                                    title="Download file"
+                                    aria-label="Download file"
+                                  >
+                                    <Download size={14} />
+                                  </a>
+                                ) : (
+                                  <a
+                                    href={fullUrl}
+                                    target="_blank"
+                                    rel="noreferrer noopener"
+                                    className="p-1.5 text-muted hover:text-ink hover:bg-surface-3 rounded-lg transition-colors text-xs cursor-pointer touch-manipulation"
+                                    title="Open link"
+                                    aria-label="Open link"
+                                  >
+                                    <ExternalLink size={14} />
+                                  </a>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => confirmDeleteAttachment(att._id, displayName)}
+                                  className="p-1.5 text-muted hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors text-xs cursor-pointer touch-manipulation"
+                                  title="Remove attachment"
+                                  aria-label="Remove attachment"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     })}
@@ -2169,51 +2319,118 @@ export default function CardModal({
                       {/* Checklist item rows */}
                       {(cl.items || []).length > 0 && (
                         <div className="space-y-1.5 pt-0.5">
-                          {(cl.items || []).map((item, itemIdx) => (
-                            <div
-                              key={item._id || `item-${itemIdx}`}
-                              className={`group/item flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-150 ${
-                                item.done
-                                  ? "bg-surface-2/30 border-line/50 text-muted"
-                                  : "bg-surface hover:bg-surface-2/60 border-line hover:border-accent/40 shadow-xs"
-                              }`}
-                            >
-                              {/* Checkbox button */}
-                              <button
-                                type="button"
-                                onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
-                                aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
-                                className={`w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation ${
+                          {(cl.items || []).map((item, itemIdx) => {
+                            const itemKey = `${clKey}-item-${item._id || itemIdx}`;
+                            const isEditingItem = editingItemKey === itemKey;
+
+                            if (isEditingItem) {
+                              return (
+                                <form
+                                  key={item._id || `item-${itemIdx}`}
+                                  onSubmit={(e) => {
+                                    e.preventDefault();
+                                    handleSaveChecklistItem(cl._id, clIndex, itemIdx);
+                                  }}
+                                  className="flex items-center gap-2 p-1.5 rounded-xl border border-accent bg-surface shadow-xs"
+                                >
+                                  <input
+                                    autoFocus
+                                    value={editingItemText}
+                                    onChange={(e) => setEditingItemText(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        handleSaveChecklistItem(cl._id, clIndex, itemIdx);
+                                      } else if (e.key === "Escape") {
+                                        setEditingItemKey(null);
+                                        setEditingItemText("");
+                                      }
+                                    }}
+                                    placeholder="Edit checklist item..."
+                                    aria-label="Edit checklist item"
+                                    className={`${fieldClass} text-xs sm:text-sm py-1 px-2.5 bg-surface rounded-lg flex-1 min-w-0`}
+                                  />
+                                  <button
+                                    type="submit"
+                                    className="px-2.5 py-1 text-xs bg-accent hover:bg-accent-dark text-white font-semibold rounded-lg transition-colors cursor-pointer shadow-xs shrink-0 flex items-center gap-1 active:scale-95"
+                                  >
+                                    <Check size={12} strokeWidth={2.5} />
+                                    <span>Save</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingItemKey(null);
+                                      setEditingItemText("");
+                                    }}
+                                    className="px-2 py-1 text-xs text-muted hover:text-ink transition-colors cursor-pointer shrink-0"
+                                  >
+                                    Cancel
+                                  </button>
+                                </form>
+                              );
+                            }
+
+                            return (
+                              <div
+                                key={item._id || `item-${itemIdx}`}
+                                className={`group/item flex items-center gap-3 px-3 py-2 rounded-xl border transition-all duration-150 ${
                                   item.done
-                                    ? "bg-emerald-500 border-emerald-500 text-white shadow-xs"
-                                    : "border-stone-300 bg-white hover:border-emerald-500 hover:bg-emerald-50/50"
+                                    ? "bg-surface-2/30 border-line/50 text-muted"
+                                    : "bg-surface hover:bg-surface-2/60 border-line hover:border-accent/40 shadow-xs"
                                 }`}
                               >
-                                {item.done && <Check size={11} strokeWidth={3} />}
-                              </button>
+                                {/* Checkbox button */}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
+                                  aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
+                                  className={`w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation ${
+                                    item.done
+                                      ? "bg-emerald-500 border-emerald-500 text-white shadow-xs"
+                                      : "border-stone-300 bg-white hover:border-emerald-500 hover:bg-emerald-50/50"
+                                  }`}
+                                >
+                                  {item.done && <Check size={11} strokeWidth={3} />}
+                                </button>
 
-                              {/* Item text */}
-                              <span
-                                onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
-                                className={`text-xs sm:text-sm flex-1 break-words cursor-pointer select-none leading-snug transition-colors ${
-                                  item.done ? "line-through text-muted/60" : "text-ink font-medium"
-                                }`}
-                              >
-                                {item.text}
-                              </span>
+                                {/* Item text */}
+                                <span
+                                  onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
+                                  onDoubleClick={() => handleStartEditChecklistItem(itemKey, item.text)}
+                                  title="Click to toggle, double-click or use edit button to edit"
+                                  className={`text-xs sm:text-sm flex-1 break-words cursor-pointer select-none leading-snug transition-colors ${
+                                    item.done ? "line-through text-muted/60" : "text-ink font-medium"
+                                  }`}
+                                >
+                                  {item.text}
+                                </span>
 
-                              {/* Delete item button */}
-                              <button
-                                type="button"
-                                onClick={() => deleteChecklistItem(cl._id, clIndex, itemIdx)}
-                                title="Delete item"
-                                aria-label="Delete item"
-                                className="opacity-0 group-hover/item:opacity-100 text-muted/60 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-all cursor-pointer shrink-0 touch-manipulation"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          ))}
+                                {/* Action buttons: Edit and Delete */}
+                                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleStartEditChecklistItem(itemKey, item.text)}
+                                    title="Edit item"
+                                    aria-label="Edit item"
+                                    className="text-muted/60 hover:text-accent p-1 rounded-md hover:bg-surface-2 transition-all cursor-pointer touch-manipulation"
+                                  >
+                                    <Pencil size={12} />
+                                  </button>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => deleteChecklistItem(cl._id, clIndex, itemIdx)}
+                                    title="Delete item"
+                                    aria-label="Delete item"
+                                    className="text-muted/60 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-all cursor-pointer touch-manipulation"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
 

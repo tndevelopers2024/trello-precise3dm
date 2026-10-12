@@ -10,6 +10,7 @@ import {
   deleteComment,
   addAttachment,
   uploadFileAttachment,
+  updateAttachment,
   deleteAttachment,
   getMyCards,
 } from "../controllers/cardController.js";
@@ -43,6 +44,7 @@ router.delete("/:id/comments/:commentId", deleteComment);
 // Attachments routes
 router.post("/:id/attachments", addAttachment);
 router.post("/:id/attachments/upload", uploadAttachment.single("file"), uploadFileAttachment);
+router.patch("/:id/attachments/:attachmentId", updateAttachment);
 router.delete("/:id/attachments/:attachmentId", deleteAttachment);
 
 export default router;

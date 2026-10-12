@@ -55,11 +55,11 @@ export default function InviteMemberModal({ onClose, onInvited, defaultBoardId =
       role="dialog"
       aria-modal="true"
       aria-label="Invite new team member"
-      className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-50 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-2 xs:p-3 sm:p-6 z-50 animate-in fade-in duration-200"
       onClick={onClose}
     >
       <div
-        className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200 text-slate-800"
+        className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-3.5 xs:p-5 sm:p-6 shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-200 text-slate-800"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Accent Top Bar */}
@@ -179,7 +179,7 @@ export default function InviteMemberModal({ onClose, onInvited, defaultBoardId =
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                 Workspace Role
               </label>
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5">
                 <button
                   type="button"
                   onClick={() => setRole("member")}
@@ -190,12 +190,12 @@ export default function InviteMemberModal({ onClose, onInvited, defaultBoardId =
                       : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
-                  <div className="flex items-center justify-between w-full mb-1">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <div className="flex items-center justify-between gap-2 w-full mb-1">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5 shrink-0">
                       <UserCheck size={14} className="text-orange-600" />
                       Employee
                     </span>
-                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700">
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-200/80 text-slate-700 shrink-0">
                       MEMBER
                     </span>
                   </div>
@@ -214,12 +214,12 @@ export default function InviteMemberModal({ onClose, onInvited, defaultBoardId =
                       : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                   }`}
                 >
-                  <div className="flex items-center justify-between w-full mb-1">
-                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <div className="flex items-center justify-between gap-2 w-full mb-1">
+                    <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5 shrink-0">
                       <Shield size={14} className="text-orange-600" />
                       Project Manager
                     </span>
-                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-700">
+                    <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-orange-500/15 text-orange-700 shrink-0">
                       ADMIN
                     </span>
                   </div>

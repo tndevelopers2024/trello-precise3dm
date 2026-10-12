@@ -57,7 +57,7 @@ export default function App() {
           <TopProgressBar />
           {user && <Navbar />}
           {user && <ServerStatusBanner />}
-          <div className={`flex-1 ${user ? "pb-16 sm:pb-14 pb-[calc(4rem+env(safe-area-inset-bottom))]" : ""}`}>
+          <div className={`flex-1 ${user ? "pb-24 sm:pb-28 pb-[calc(6rem+env(safe-area-inset-bottom))]" : ""}`}>
             <Suspense fallback={<RouteFallback />}>
               <Routes>
                 <Route path="/login" element={user ? <Navigate to="/" /> : <Login />} />

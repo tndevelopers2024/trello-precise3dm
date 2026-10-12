@@ -97,7 +97,7 @@ function List({
 
   return (
     <div
-      className={`w-[82vw] max-w-[300px] sm:w-72 shrink-0 bg-surface-2 border rounded-xl flex flex-col max-h-full transition-all duration-150 ${
+      className={`w-[82vw] max-w-[300px] sm:w-72 shrink-0 bg-surface-2 border rounded-xl flex flex-col max-h-[calc(100dvh-170px)] sm:max-h-[calc(100dvh-185px)] transition-all duration-150 ${
         isDragging
           ? "border-accent/60 shadow-2xl ring-2 ring-accent/30 rotate-[0.8deg] opacity-95 bg-surface-2/95"
           : "border-line shadow-sm"
@@ -181,7 +181,7 @@ function List({
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className={`flex-1 overflow-y-auto scrollbar-hide px-2.5 space-y-2 pb-2 min-h-[72px] rounded-lg transition-colors duration-150 ${
+            className={`flex-1 overflow-y-auto scrollbar-hide px-2.5 space-y-2 pb-4 min-h-[72px] rounded-lg transition-colors duration-150 ${
               snapshot.isDraggingOver ? "bg-accent/15 ring-2 ring-accent/30 ring-inset" : "bg-transparent"
             }`}
           >

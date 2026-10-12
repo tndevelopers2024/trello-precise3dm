@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from "react";
-import { Filter, ChevronDown, Check } from "lucide-react";
+import { Filter, ChevronDown, Check, X } from "lucide-react";
 
 /**
  * Reusable light-themed Filter Popover component
  *
  * Props:
+ * - id?: string
  * - groups: Array<{
  *     id: string,
  *     title: string,
@@ -27,6 +28,7 @@ import { Filter, ChevronDown, Check } from "lucide-react";
  * - buttonClassName?: string
  */
 export default function FilterPopover({
+  id,
   groups = [],
   selected = {},
   onChange,
@@ -110,14 +112,15 @@ export default function FilterPopover({
       {/* Filter Trigger Button */}
       <button
         type="button"
+        id={id}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((prev) => !prev)}
-        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 text-xs sm:text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation shadow-sm cursor-pointer select-none ${
+        className={`flex items-center gap-1.5 sm:gap-2 rounded-lg text-xs sm:text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-accent/40 touch-manipulation shadow-sm cursor-pointer select-none ${
           totalActive > 0
             ? "bg-accent/10 border border-accent/30 text-accent font-semibold hover:bg-accent/15"
             : "bg-surface hover:bg-surface-2 border border-line text-ink hover:border-line/80 shadow-sm"
-        } ${isOpen ? "ring-2 ring-accent/40 border-accent" : ""} ${buttonClassName}`}
+        } ${isOpen ? "ring-2 ring-accent/40 border-accent" : ""} ${buttonClassName || "px-3 py-1.5"}`}
       >
         {/* Funnel Icon */}
         <Filter
@@ -127,7 +130,7 @@ export default function FilterPopover({
           }`}
         />
 
-        <span>{buttonText}</span>
+        <span className="hidden sm:inline">{buttonText}</span>
 
         {/* Active Badge */}
         {totalActive > 0 && (
@@ -139,7 +142,7 @@ export default function FilterPopover({
         {/* Chevron indicator */}
         <ChevronDown
           size={14}
-          className={`text-muted shrink-0 transition-transform duration-200 ${
+          className={`hidden sm:block text-muted shrink-0 transition-transform duration-200 ${
             isOpen ? "rotate-180 text-accent" : ""
           }`}
         />
@@ -150,10 +153,23 @@ export default function FilterPopover({
         <div
           role="dialog"
           aria-label="Filter options"
-          className={`absolute mt-2 w-72 sm:w-80 rounded-xl bg-surface border border-line shadow-pop p-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150 text-ink max-h-[80vh] flex flex-col ${
-            align === "right" ? "right-0" : "left-0"
+          className={`fixed left-3 right-3 top-16 sm:left-auto sm:top-auto sm:absolute sm:mt-2 w-auto sm:w-80 rounded-xl bg-surface border border-line shadow-pop p-3 z-50 animate-in fade-in-50 zoom-in-95 duration-150 text-ink max-h-[80vh] flex flex-col ${
+            align === "right" ? "sm:right-0 sm:left-auto" : "sm:left-0 sm:right-auto"
           } ${panelClassName}`}
         >
+          {/* Header with Title & Dismiss Button for mobile */}
+          <div className="flex items-center justify-between pb-2 mb-2 border-b border-line/60 shrink-0">
+            <span className="text-xs font-bold text-ink">Filters</span>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              aria-label="Close filters"
+              className="w-6 h-6 flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 rounded-lg transition-colors cursor-pointer touch-manipulation"
+            >
+              <X size={14} />
+            </button>
+          </div>
+
           {/* Scrollable Groups Area */}
           <div className="overflow-y-auto scrollbar-hide space-y-4 pr-1 max-h-[60vh]">
             {groups.length === 0 ? (

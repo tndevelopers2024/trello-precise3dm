@@ -10,58 +10,99 @@ export function ProjectsProvider({ children }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const inFlightPromiseRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   const fetchBoards = useCallback(
-    async (force = false, signal = null) => {
-      if (!user) {
+    async (force = false) => {
+      if (!user?._id) {
         setBoards([]);
         setLoading(false);
         return [];
       }
 
-      // Deduplicate simultaneous requests: return existing in-flight promise if active
+      // Return ongoing request if one is in flight and not forcing refresh
       if (inFlightPromiseRef.current && !force) {
         return inFlightPromiseRef.current;
       }
 
+      // If forcing refresh, cancel previous in-flight request
+      if (force && abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
+      const controller = new AbortController();
+      abortControllerRef.current = controller;
       setLoading(true);
       setError(null);
 
       const promise = api
-        .get("/boards", { signal })
+        .get("/boards", { signal: controller.signal })
         .then((res) => {
-          setBoards(res.data);
-          setError(null);
-          return res.data;
+          if (Array.isArray(res.data)) {
+            setBoards(res.data);
+            setError(null);
+            return res.data;
+          }
+          return [];
         })
         .catch((err) => {
           if (err.name === "CanceledError" || err.code === "ERR_CANCELED") {
             return [];
           }
+          console.error("Failed to load projects:", err);
           setError(err.response?.data?.message || "Failed to load projects");
           throw err;
         })
         .finally(() => {
+          if (inFlightPromiseRef.current === promise) {
+            inFlightPromiseRef.current = null;
+          }
           setLoading(false);
-          inFlightPromiseRef.current = null;
         });
 
       inFlightPromiseRef.current = promise;
       return promise;
     },
-    [user]
+    [user?._id]
   );
 
-  // Initial load when user becomes available
+  const updateBoard = useCallback((updatedBoard) => {
+    if (!updatedBoard?._id) return;
+    setBoards((prev) =>
+      prev.map((b) => (b._id === updatedBoard._id ? { ...b, ...updatedBoard } : b))
+    );
+  }, []);
+
+  const removeBoard = useCallback((boardId) => {
+    if (!boardId) return;
+    setBoards((prev) => prev.filter((b) => b._id !== boardId));
+  }, []);
+
+  const addBoard = useCallback((newBoard) => {
+    if (!newBoard?._id) return;
+    setBoards((prev) => {
+      const exists = prev.some((b) => b._id === newBoard._id);
+      if (exists) {
+        return prev.map((b) => (b._id === newBoard._id ? { ...b, ...newBoard } : b));
+      }
+      return [newBoard, ...prev];
+    });
+  }, []);
+
+  // Initial load when user becomes available or user ID changes
   useEffect(() => {
-    if (!user) {
+    if (!user?._id) {
       setBoards([]);
       return;
     }
-    const controller = new AbortController();
-    fetchBoards(false, controller.signal).catch(() => {});
-    return () => controller.abort();
-  }, [user, fetchBoards]);
+    fetchBoards(false).catch(() => {});
+
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [user?._id, fetchBoards]);
 
   return (
     <ProjectsContext.Provider
@@ -71,6 +112,9 @@ export function ProjectsProvider({ children }) {
         loading,
         error,
         fetchBoards,
+        updateBoard,
+        removeBoard,
+        addBoard,
       }}
     >
       {children}
@@ -85,3 +129,4 @@ export function useProjects() {
   }
   return context;
 }
+

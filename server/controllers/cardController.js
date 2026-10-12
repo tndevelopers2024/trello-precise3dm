@@ -469,6 +469,49 @@ export const deleteAttachment = async (req, res) => {
   }
 };
 
+// PATCH /api/cards/:id/attachments/:attachmentId  { label }
+export const updateAttachment = async (req, res) => {
+  try {
+    const card = await Card.findOne({ _id: req.params.id, isDeleted: { $ne: true } });
+    if (!card) return res.status(404).json({ message: "Card not found" });
+
+    const attachment = card.attachments.id(req.params.attachmentId);
+    if (!attachment || attachment.isDeleted) return res.status(404).json({ message: "Attachment not found" });
+
+    const isAuthor = attachment.addedBy?.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === "admin" || req.user.role === "superadmin" || req.user.role === "manager";
+    if (!isAuthor && !isAdmin && attachment.addedBy) {
+      return res.status(403).json({ message: "Not authorized to rename this attachment" });
+    }
+
+    const newLabel = (req.body.label !== undefined ? req.body.label : req.body.name || "").trim();
+    if (!newLabel) {
+      return res.status(400).json({ message: "Attachment name cannot be empty" });
+    }
+
+    const oldLabel = attachment.label || attachment.originalName || attachment.filename || attachment.url;
+    attachment.label = newLabel;
+
+    card.activityLog.push({
+      action: "attachment_renamed",
+      user: req.user._id,
+      meta: {
+        from: oldLabel,
+        to: newLabel,
+        attachmentId: attachment._id,
+      },
+      timestamp: new Date(),
+    });
+
+    await card.save();
+
+    const populated = await populateCard(Card.findById(card._id));
+    res.json(filterCardActiveItems(populated));
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // GET /api/cards/mine  - "My Tasks" view across all boards for the logged-in user
 export const getMyCards = async (req, res) => {
   try {

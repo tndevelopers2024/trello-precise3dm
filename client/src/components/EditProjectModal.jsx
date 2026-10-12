@@ -4,10 +4,12 @@ import { X, Check, Loader2 } from "lucide-react";
 import api from "../api/axios.js";
 import { PALETTE } from "../utils/color.js";
 import { useToast } from "../context/ToastContext.jsx";
+import { useProjects } from "../context/ProjectsContext.jsx";
 import DatePicker from "./ui/DatePicker.jsx";
 
 export default function EditProjectModal({ board, onClose, onUpdated }) {
   const toast = useToast();
+  const { updateBoard } = useProjects();
   const [title, setTitle] = useState(board?.title || "");
   const [description, setDescription] = useState(board?.description || "");
   const [dueDate, setDueDate] = useState(board?.dueDate || null);
@@ -34,6 +36,7 @@ export default function EditProjectModal({ board, onClose, onUpdated }) {
       });
 
       toast.success(`Project "${title.trim()}" updated successfully!`, { title: "Success" });
+      updateBoard(res.data);
       onUpdated?.(res.data);
       onClose();
     } catch (err) {
@@ -50,13 +53,13 @@ export default function EditProjectModal({ board, onClose, onUpdated }) {
       role="dialog"
       aria-modal="true"
       aria-labelledby="edit-project-title"
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-[60] animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-2 xs:p-3 sm:p-6 z-[60] animate-in fade-in duration-200"
       onClick={!loading ? onClose : undefined}
     >
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-pop text-ink"
+        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-md p-3.5 xs:p-5 sm:p-6 shadow-pop text-ink"
       >
         <div className="flex items-center justify-between pb-3 border-b border-line mb-4">
           <div className="flex items-center gap-2">

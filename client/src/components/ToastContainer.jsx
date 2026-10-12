@@ -42,12 +42,12 @@ const TYPE_CONFIG = {
 };
 
 const POSITION_CLASSES = {
-  "top-right": "top-4 right-4 sm:top-5 sm:right-5 items-end",
-  "top-left": "top-4 left-4 sm:top-5 sm:left-5 items-start",
-  "top-center": "top-4 left-1/2 -translate-x-1/2 sm:top-5 items-center",
-  "bottom-right": "bottom-4 right-4 sm:bottom-5 sm:right-5 items-end",
-  "bottom-left": "bottom-4 left-4 sm:bottom-5 sm:left-5 items-start",
-  "bottom-center": "bottom-4 left-1/2 -translate-x-1/2 sm:bottom-5 items-center",
+  "top-right": "top-3 right-2 xs:top-4 xs:right-4 sm:top-5 sm:right-5 items-end",
+  "top-left": "top-3 left-2 xs:top-4 xs:left-4 sm:top-5 sm:left-5 items-start",
+  "top-center": "top-3 left-1/2 -translate-x-1/2 sm:top-5 items-center",
+  "bottom-right": "bottom-3 right-2 xs:bottom-4 xs:right-4 sm:bottom-5 sm:right-5 items-end",
+  "bottom-left": "bottom-3 left-2 xs:bottom-4 xs:left-4 sm:bottom-5 sm:left-5 items-start",
+  "bottom-center": "bottom-3 left-1/2 -translate-x-1/2 sm:bottom-5 items-center",
 };
 
 function ToastItem({ toast, onDismiss }) {
@@ -161,7 +161,7 @@ export default function ToastContainer({ toasts, removeToast, position = "top-ri
   const content = (
     <div
       aria-label="Notifications"
-      className={`fixed z-[100] pointer-events-none flex flex-col gap-2.5 max-w-[calc(100vw-2rem)] sm:max-w-md ${positionClass}`}
+      className={`fixed z-[100] pointer-events-none flex flex-col gap-2.5 max-w-[calc(100vw-1rem)] xs:max-w-[calc(100vw-2rem)] sm:max-w-md ${positionClass}`}
     >
       {toasts.map((item) => (
         <ToastItem key={item.id} toast={item} onDismiss={removeToast} />

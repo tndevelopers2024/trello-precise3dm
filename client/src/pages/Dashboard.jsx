@@ -74,8 +74,9 @@ export default function Dashboard() {
     }
   }, []);
 
-  // Initial fetch of archived boards and secondary users
+  // Initial fetch of active boards, archived boards and secondary users
   useEffect(() => {
+    fetchBoards();
     fetchArchivedBoards();
 
     const controller = new AbortController();
@@ -91,7 +92,7 @@ export default function Dashboard() {
     return () => {
       controller.abort();
     };
-  }, [fetchArchivedBoards]);
+  }, [fetchBoards, fetchArchivedBoards]);
 
   // Close card action menu on outside clicks
   useEffect(() => {
@@ -179,7 +180,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-9 animate-in fade-in duration-150">
+    <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-9 pb-24 sm:pb-28 animate-in fade-in duration-150">
       {/* ================= HERO & HEADER SECTION ================= */}
       <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-5 mb-6 pb-6 border-b border-line/60">
         <div className="space-y-1.5">

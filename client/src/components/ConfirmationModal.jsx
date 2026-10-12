@@ -52,12 +52,12 @@ export default function ConfirmationModal({
       aria-modal="true"
       aria-labelledby="confirmation-modal-title"
       aria-describedby="confirmation-modal-description"
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[70] p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[70] p-2 xs:p-3 sm:p-4 animate-in fade-in duration-200"
       onClick={!loading ? onClose : undefined}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-sm sm:max-w-md p-5 sm:p-6 shadow-pop text-ink relative transform transition-all duration-200 animate-in zoom-in-95"
+        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-sm sm:max-w-md p-3.5 xs:p-5 sm:p-6 shadow-pop text-ink relative transform transition-all duration-200 animate-in zoom-in-95"
       >
         <div className="flex items-start gap-3.5 sm:gap-4">
           {/* Icon */}

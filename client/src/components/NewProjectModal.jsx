@@ -5,6 +5,7 @@ import { X, Plus, Loader2, Calendar } from "lucide-react";
 import api from "../api/axios.js";
 import { PALETTE } from "../utils/color.js";
 import { useToast } from "../context/ToastContext.jsx";
+import { useProjects } from "../context/ProjectsContext.jsx";
 import DatePicker from "./ui/DatePicker.jsx";
 
 // Popup for creating a new project. Only ever rendered for admins (callers
@@ -13,6 +14,7 @@ import DatePicker from "./ui/DatePicker.jsx";
 export default function NewProjectModal({ onClose, onCreated }) {
   const navigate = useNavigate();
   const toast = useToast();
+  const { addBoard } = useProjects();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -33,6 +35,7 @@ export default function NewProjectModal({ onClose, onCreated }) {
         color,
       });
       toast.success(`Project "${title}" created!`, { title: "Success" });
+      addBoard(res.data);
       onCreated?.(res.data);
       onClose();
       navigate(`/boards/${res.data._id}`);
@@ -50,13 +53,13 @@ export default function NewProjectModal({ onClose, onCreated }) {
       role="dialog"
       aria-modal="true"
       aria-label="New project"
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 sm:p-6 z-[60] animate-in fade-in duration-200"
+      className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-2 xs:p-3 sm:p-6 z-[60] animate-in fade-in duration-200"
       onClick={onClose}
     >
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-pop text-ink"
+        className="bg-surface border border-line rounded-xl sm:rounded-2xl w-full max-w-md p-3.5 xs:p-5 sm:p-6 shadow-pop text-ink"
       >
         <div className="flex items-center justify-between pb-3 border-b border-line mb-4">
           <h3 className="text-base font-semibold text-ink">New project</h3>
