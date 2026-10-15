@@ -37,27 +37,41 @@ export const checkDueDateFilter = (card, dueDateFilters) => {
 
 export const cardMatchesFilter = (card, filters) => {
   if (!filters) return true;
+
+  // 1. Members Filter
   if (filters.members && filters.members.length > 0) {
-    const hasMember = card.assignees?.some((a) =>
-      filters.members.includes(a._id || a)
-    );
+    const memberFilterIds = filters.members.map((id) => (id?._id || id).toString());
+    const hasMember = card.assignees?.some((a) => {
+      const aId = (a?._id || a)?.toString();
+      return memberFilterIds.includes(aId);
+    });
     if (!hasMember) return false;
   }
+
+  // 2. Priority Filter
   if (filters.priority && filters.priority.length > 0) {
     if (!filters.priority.includes(card.priority)) return false;
   }
+
+  // 3. Due Date Filter
   if (filters.dueDate && filters.dueDate.length > 0) {
     if (!checkDueDateFilter(card, filters.dueDate)) return false;
   }
+
+  // 4. Labels Filter
   if (filters.labels && filters.labels.length > 0) {
-    const cardLabels = card.labels || [];
+    const cardLabels = (card.labels || []).map((l) =>
+      (typeof l === "string" ? l : l?.name || "").trim().toLowerCase()
+    );
     const matches = filters.labels.some((lbl) => {
       if (lbl === "no_label") {
         return cardLabels.length === 0;
       }
-      return cardLabels.includes(lbl);
+      const filterName = (typeof lbl === "string" ? lbl : lbl?.name || "").trim().toLowerCase();
+      return cardLabels.includes(filterName);
     });
     if (!matches) return false;
   }
+
   return true;
 };

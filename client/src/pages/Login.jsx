@@ -113,8 +113,16 @@ export default function Login() {
                 <span>3D Project Workspace</span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 tracking-tight leading-[1.15]">
-                Sign in to precise3dm
+              <h1 className="text-3xl sm:text-4xl lg:text-[40px] font-bold text-slate-900 tracking-tight leading-[1.15] flex flex-col items-start gap-2">
+                <span>Sign in to</span>
+                <img
+                  src="/Precise Logo.png"
+                  alt="Precise 3DM"
+                  className="h-8 sm:h-9 lg:h-10 w-auto object-contain"
+                />
+                <span className="text-2xl sm:text-3xl lg:text-[32px] font-extrabold tracking-tight text-slate-900">
+                  VISION BOARD
+                </span>
               </h1>
 
               <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-sm">
@@ -175,8 +183,16 @@ export default function Login() {
                   <span>3D Project Workspace</span>
                 </div>
 
-                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
-                  Sign in to precise3dm
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex flex-col items-center gap-1.5">
+                  <span>Sign in to</span>
+                  <img
+                    src="/Precise Logo.png"
+                    alt="Precise 3DM"
+                    className="h-7 sm:h-8 w-auto object-contain"
+                  />
+                  <span className="text-lg sm:text-xl font-extrabold tracking-tight text-slate-900">
+                    VISION BOARD
+                  </span>
                 </h1>
                 <p className="text-xs text-slate-500 mt-0.5 max-w-xs">
                   Manage projects, 3D engineering deliverables, and team tasks in real-time

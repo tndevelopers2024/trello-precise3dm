@@ -60,15 +60,18 @@ export const getArchivedBoards = async (req, res) => {
 };
 
 const DEFAULT_LABELS = [
-  { name: "Planning", color: "#0284c7" },
-  { name: "Site Work", color: "#d97706" },
-  { name: "Structural", color: "#57534e" },
-  { name: "Electrical", color: "#ca8a04" },
-  { name: "Plumbing", color: "#0891b2" },
-  { name: "Procurement", color: "#9333ea" },
-  { name: "Safety", color: "#e11d48" },
-  { name: "Inspection", color: "#059669" },
+  { name: "3D Scanning", color: "#0284c7" },
+  { name: "Reverse Engineering", color: "#d97706" },
+  { name: "CAD Modeling", color: "#4f46e5" },
+  { name: "Metrology", color: "#059669" },
+  { name: "Quality Control", color: "#e11d48" },
+  { name: "Documentation", color: "#57534e" },
 ];
+
+const LEGACY_CONSTRUCTION_NAMES = new Set([
+  "planning", "site work", "structural", "electrical",
+  "plumbing", "procurement", "safety", "inspection"
+]);
 
 // GET /api/boards/:id
 export const getBoard = async (req, res) => {
@@ -89,8 +92,14 @@ export const getBoard = async (req, res) => {
       board.labels = board.labels.filter((l) => !l.isDeleted);
     }
 
-    // Initialize default labels if empty
-    if (!board.labels || board.labels.length === 0) {
+    // Check if board contains legacy construction labels
+    const hasLegacyOnly =
+      board.labels &&
+      board.labels.length > 0 &&
+      board.labels.every((l) => LEGACY_CONSTRUCTION_NAMES.has(l.name.toLowerCase()));
+
+    // Initialize or migrate to Precise3DM default labels
+    if (!board.labels || board.labels.length === 0 || hasLegacyOnly) {
       board.labels = DEFAULT_LABELS;
       await board.save();
     }

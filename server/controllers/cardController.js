@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Card from "../models/Card.js";
 import List from "../models/List.js";
+import Board from "../models/Board.js";
 
 const populateCard = (query) =>
   query
@@ -524,3 +525,52 @@ export const getMyCards = async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 };
+
+// GET /api/cards - retrieve cards filtered by members/assignees and/or boards
+export const getCards = async (req, res) => {
+  try {
+    const { members, board, boards } = req.query;
+    const query = { isDeleted: { $ne: true } };
+
+    if (board) {
+      query.board = board;
+    } else if (boards) {
+      const boardIds = boards.split(",").filter(Boolean);
+      query.board = { $in: boardIds };
+    }
+
+    if (members) {
+      const memberIds = members.split(",").filter(Boolean);
+      query.assignees = { $in: memberIds };
+    }
+
+    // Role-based visibility:
+    // If not admin/superadmin, restrict to boards user has access to
+    if (req.user.role !== "admin" && req.user.role !== "superadmin") {
+      const accessibleBoards = await Board.find({
+        $or: [{ createdBy: req.user._id }, { "members.user": req.user._id }],
+        isDeleted: { $ne: true },
+      }).select("_id");
+      const accessibleIds = accessibleBoards.map((b) => b._id);
+
+      if (query.board && query.board.$in) {
+        query.board.$in = query.board.$in.filter((id) =>
+          accessibleIds.some((accId) => accId.toString() === id.toString())
+        );
+      } else if (!query.board) {
+        query.board = { $in: accessibleIds };
+      }
+    }
+
+    const cards = await Card.find(query)
+      .populate("board", "title color archived")
+      .populate("list", "title")
+      .populate("assignees", "name email avatarColor role")
+      .sort({ dueDate: 1, order: 1 });
+
+    res.json(cards);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+

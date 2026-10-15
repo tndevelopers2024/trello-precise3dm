@@ -30,7 +30,7 @@ import CardModalSkeleton from "./ui/CardModalSkeleton.jsx";
 
 import {
   LABEL_COLOR_OPTIONS,
-  PRESET_CONSTRUCTION_LABELS,
+  DEFAULT_PROJECT_LABELS,
   getLabelInfo,
   getLabelDotColor,
 } from "../utils/labels.js";
@@ -1618,11 +1618,23 @@ export default function CardModal({
                           <>
                             <div className="max-h-48 overflow-y-auto scrollbar-hide space-y-1">
                               {(() => {
-                                const allLabels = (boardLabels && boardLabels.length > 0)
-                                  ? boardLabels
-                                  : PRESET_CONSTRUCTION_LABELS;
+                                const legacyConstructionLabels = new Set([
+                                  "planning", "site work", "structural", "electrical",
+                                  "plumbing", "procurement", "safety", "inspection"
+                                ]);
 
-                                const filtered = allLabels.filter((l) =>
+                                const baseLabels = (boardLabels && boardLabels.length > 0)
+                                  ? boardLabels
+                                  : DEFAULT_PROJECT_LABELS;
+
+                                const allLabels = baseLabels.filter((l) => {
+                                  const name = (typeof l === "string" ? l : l.name || "").trim().toLowerCase();
+                                  return !legacyConstructionLabels.has(name);
+                                });
+
+                                const effectiveLabels = allLabels.length > 0 ? allLabels : DEFAULT_PROJECT_LABELS;
+
+                                const filtered = effectiveLabels.filter((l) =>
                                   (l.name || l).toLowerCase().includes(labelSearch.toLowerCase())
                                 );
 

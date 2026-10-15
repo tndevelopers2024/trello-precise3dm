@@ -20,6 +20,7 @@ import {
   Edit3,
   MoreVertical,
   Calendar,
+  Table,
 } from "lucide-react";
 import api from "../api/axios.js";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -32,6 +33,7 @@ import ConfirmationModal from "../components/ConfirmationModal.jsx";
 import InviteMemberModal from "../components/InviteMemberModal.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
 import DashboardSkeleton from "../components/ui/DashboardSkeleton.jsx";
+import ProjectTableView from "../components/ProjectTableView.jsx";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -180,7 +182,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 pt-6 sm:pt-9 pb-24 sm:pb-28 animate-in fade-in duration-150">
+    <div className="max-w-[1500px] mx-auto px-3 sm:px-6 lg:px-8 pt-6 sm:pt-9 pb-24 sm:pb-28 animate-in fade-in duration-150">
       {/* ================= HERO & HEADER SECTION ================= */}
       <div className="relative z-20 flex flex-col md:flex-row md:items-center justify-between gap-5 mb-6 pb-6 border-b border-line/60">
         <div className="space-y-1.5">
@@ -189,7 +191,7 @@ export default function Dashboard() {
             <span>Workspace Hub</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-ink tracking-tight flex items-center gap-2.5">
-            <span>Projects</span>
+            <span>VISION BOARD</span>
             <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-surface-2 text-muted border border-line">
               {boards.length} Active
             </span>
@@ -265,8 +267,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ================= SECTION TABS: ACTIVE VS ARCHIVED ================= */}
-      <div className="flex items-center gap-2 mb-6">
+      {/* ================= SECTION TABS: ACTIVE VS ARCHIVED VS TABLE ================= */}
+      <div className="flex items-center gap-2 mb-6 flex-wrap">
         <button
           type="button"
           onClick={() => setActiveTab("active")}
@@ -306,7 +308,63 @@ export default function Dashboard() {
             {archivedBoards.length}
           </span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab("table")}
+          className={`h-9 px-4 rounded-xl text-xs sm:text-sm font-semibold flex items-center gap-2 transition-all cursor-pointer ${
+            activeTab === "table"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "bg-surface hover:bg-surface-2 text-muted hover:text-ink border border-line"
+          }`}
+        >
+          <Table size={14} />
+          <span>Table View</span>
+          <span
+            className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === "table" ? "bg-white/20 text-white" : "bg-surface-2 text-muted"
+            }`}
+          >
+            {boards.length + archivedBoards.length}
+          </span>
+        </button>
       </div>
+
+      {activeTab === "table" ? (
+        <ProjectTableView
+          activeBoards={boards}
+          archivedBoards={archivedBoards}
+          allUsers={allUsers}
+          globalSearchQuery={searchQuery}
+          globalMemberFilters={filters.members}
+          onClearGlobalMembers={() => setFilters((prev) => ({ ...prev, members: [] }))}
+          onUpdateGlobalMembers={(members) => setFilters((prev) => ({ ...prev, members }))}
+          onEdit={(board) => setEditingBoard(board)}
+          onArchive={(board) =>
+            setConfirmModal({
+              isOpen: true,
+              type: "archive",
+              board,
+            })
+          }
+          onRestore={(board) =>
+            setConfirmModal({
+              isOpen: true,
+              type: "restore",
+              board,
+            })
+          }
+          onDelete={(board) =>
+            setConfirmModal({
+              isOpen: true,
+              type: "delete",
+              board,
+            })
+          }
+          canManageProjects={canManageProjects}
+        />
+      ) : (
+        <>
 
       {/* ================= EMPTY STATES ================= */}
       {/* 1. Active Tab Empty */}
@@ -622,6 +680,8 @@ export default function Dashboard() {
           );
         })}
       </div>
+      </>
+      )}
 
       {/* New Project Modal */}
       {showNewProject && (

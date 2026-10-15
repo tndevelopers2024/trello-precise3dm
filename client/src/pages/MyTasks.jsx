@@ -6,6 +6,7 @@ import { Skeleton } from "../components/ui/Skeleton.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
 import { useToast } from "../context/ToastContext.jsx";
 import { cardMatchesFilter } from "../utils/filter.js";
+import { DEFAULT_PROJECT_LABELS, getLabelDotColor } from "../utils/labels.js";
 
 const priorityColor = {
   low: "bg-surface-2 text-ink border border-line",
@@ -73,12 +74,23 @@ export default function MyTasks() {
 
   const uniqueLabels = useMemo(() => {
     const set = new Set();
+    const legacyConstructionLabels = new Set([
+      "planning", "site work", "structural", "electrical",
+      "plumbing", "procurement", "safety", "inspection"
+    ]);
+
     cards.forEach((c) => {
       (c.labels || []).forEach((lbl) => {
-        if (lbl && lbl.trim()) set.add(lbl.trim());
+        const name = typeof lbl === "string" ? lbl.trim() : lbl?.name?.trim();
+        if (name && !legacyConstructionLabels.has(name.toLowerCase())) {
+          set.add(name);
+        }
       });
     });
-    ["Design", "Frontend", "Backend", "Bug", "Feature", "Testing"].forEach((lbl) => set.add(lbl));
+
+    if (set.size === 0) {
+      DEFAULT_PROJECT_LABELS.forEach((l) => set.add(l.name));
+    }
     return Array.from(set);
   }, [cards]);
 
@@ -88,11 +100,22 @@ export default function MyTasks() {
       title: "Labels",
       options: [
         ...uniqueLabels.map((lbl) => {
-          const count = cards.filter((c) => (c.labels || []).includes(lbl)).length;
+          const count = cards.filter((c) => {
+            const cardLbls = (c.labels || []).map((x) =>
+              (typeof x === "string" ? x : x?.name || "").trim().toLowerCase()
+            );
+            return cardLbls.includes(lbl.toLowerCase());
+          }).length;
+          const dotColor = getLabelDotColor(lbl);
           return {
             value: lbl,
             label: lbl,
-            icon: <Tag size={12} className="text-accent inline-block" />,
+            icon: (
+              <span
+                className="w-2.5 h-2.5 rounded-full inline-block"
+                style={{ backgroundColor: dotColor }}
+              />
+            ),
             badge: count > 0 ? String(count) : undefined,
           };
         }),

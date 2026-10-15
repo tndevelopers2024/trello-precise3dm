@@ -18,7 +18,7 @@ import InviteMemberModal from "../components/InviteMemberModal.jsx";
 import FilterPopover from "../components/ui/FilterPopover.jsx";
 import BoardSkeleton from "../components/ui/BoardSkeleton.jsx";
 import { cardMatchesFilter } from "../utils/filter.js";
-import { getLabelDotColor } from "../utils/labels.js";
+import { getLabelDotColor, DEFAULT_PROJECT_LABELS } from "../utils/labels.js";
 
 export default function BoardView() {
   const { id: boardId } = useParams();
@@ -313,14 +313,35 @@ export default function BoardView() {
 
   const uniqueLabels = useMemo(() => {
     const set = new Set();
-    (board?.labels || []).forEach((l) => set.add(l.name));
+    const legacyConstructionLabels = new Set([
+      "planning", "site work", "structural", "electrical",
+      "plumbing", "procurement", "safety", "inspection"
+    ]);
+
+    // 1. Labels from cards on this board
     lists.forEach((l) => {
       (l.cards || []).forEach((c) => {
         (c.labels || []).forEach((lbl) => {
-          if (lbl && lbl.trim()) set.add(lbl.trim());
+          const name = typeof lbl === "string" ? lbl.trim() : lbl?.name?.trim();
+          if (name && !legacyConstructionLabels.has(name.toLowerCase())) {
+            set.add(name);
+          }
         });
       });
     });
+
+    // 2. Board configured labels (excluding legacy construction labels)
+    (board?.labels || []).forEach((l) => {
+      const name = l?.name?.trim();
+      if (name && !l.isDeleted && !legacyConstructionLabels.has(name.toLowerCase())) {
+        set.add(name);
+      }
+    });
+
+    if (set.size === 0) {
+      DEFAULT_PROJECT_LABELS.forEach((l) => set.add(l.name));
+    }
+
     return Array.from(set);
   }, [board?.labels, lists]);
 
@@ -333,7 +354,12 @@ export default function BoardView() {
           const count = lists.reduce(
             (sum, l) =>
               sum +
-              (l.cards?.filter((c) => (c.labels || []).includes(lbl)).length || 0),
+              (l.cards?.filter((c) => {
+                const cardLbls = (c.labels || []).map((x) =>
+                  (typeof x === "string" ? x : x?.name || "").trim().toLowerCase()
+                );
+                return cardLbls.includes(lbl.toLowerCase());
+              }).length || 0),
             0
           );
           const dotColor = getLabelDotColor(lbl, board?.labels || []);

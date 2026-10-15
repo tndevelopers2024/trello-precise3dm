@@ -13,6 +13,7 @@ import {
   updateAttachment,
   deleteAttachment,
   getMyCards,
+  getCards,
 } from "../controllers/cardController.js";
 import { protect, boardMember } from "../middleware/auth.js";
 import { uploadAttachment } from "../middleware/upload.js";
@@ -22,6 +23,7 @@ const router = express.Router();
 router.use(protect);
 
 router.get("/mine", getMyCards);
+router.get("/", getCards);
 router.post(
   "/",
   (req, res, next) => {
