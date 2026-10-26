@@ -5,11 +5,14 @@ import Board from "../models/Board.js";
 
 const populateCard = (query) =>
   query
-    .populate("assignees", "name email avatarColor")
+    .populate("assignees", "name email avatarColor role")
     .populate("comments.user", "name avatarColor role")
     .populate("attachments.addedBy", "name avatarColor role")
     .populate("activityLog.user", "name avatarColor role")
-    .populate("list", "title");
+    .populate("list", "title")
+    .populate("checklists.assignees", "name email avatarColor role")
+    .populate("checklists.items.assignees", "name email avatarColor role")
+    .populate("checklist.assignees", "name email avatarColor role");
 
 export const filterCardActiveItems = (card) => {
   if (!card) return null;
@@ -173,6 +176,11 @@ export const updateCard = async (req, res) => {
       updates.checklists = updates.checklists.map((cl) => {
         const cleanCl = {
           title: cl.title || "Checklist",
+          assignees: Array.isArray(cl.assignees)
+            ? cl.assignees
+                .map((a) => (a && typeof a === "object" ? a._id || a : a))
+                .filter((id) => id && mongoose.Types.ObjectId.isValid(id))
+            : [],
           items: (cl.items || []).map((it) => {
             const cleanItem = {
               text: it.text,
@@ -181,6 +189,18 @@ export const updateCard = async (req, res) => {
             if (it._id && mongoose.Types.ObjectId.isValid(it._id) && String(it._id) !== "legacy") {
               cleanItem._id = it._id;
             }
+            if (it.assignees && Array.isArray(it.assignees)) {
+              cleanItem.assignees = it.assignees
+                .map((a) => (a && typeof a === "object" ? a._id || a : a))
+                .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+            } else if (it.assignee) {
+              const aId = typeof it.assignee === "object" ? it.assignee._id : it.assignee;
+              if (aId && mongoose.Types.ObjectId.isValid(aId)) {
+                cleanItem.assignees = [aId];
+              }
+            } else {
+              cleanItem.assignees = [];
+            }
             return cleanItem;
           }),
         };
@@ -188,6 +208,31 @@ export const updateCard = async (req, res) => {
           cleanCl._id = cl._id;
         }
         return cleanCl;
+      });
+    }
+
+    if (updates.checklist && Array.isArray(updates.checklist)) {
+      updates.checklist = updates.checklist.map((it) => {
+        const cleanItem = {
+          text: it.text,
+          done: Boolean(it.done),
+        };
+        if (it._id && mongoose.Types.ObjectId.isValid(it._id)) {
+          cleanItem._id = it._id;
+        }
+        if (it.assignees && Array.isArray(it.assignees)) {
+          cleanItem.assignees = it.assignees
+            .map((a) => (a && typeof a === "object" ? a._id || a : a))
+            .filter((id) => id && mongoose.Types.ObjectId.isValid(id));
+        } else if (it.assignee) {
+          const aId = typeof it.assignee === "object" ? it.assignee._id : it.assignee;
+          if (aId && mongoose.Types.ObjectId.isValid(aId)) {
+            cleanItem.assignees = [aId];
+          }
+        } else {
+          cleanItem.assignees = [];
+        }
+        return cleanItem;
       });
     }
 
@@ -516,9 +561,21 @@ export const updateAttachment = async (req, res) => {
 // GET /api/cards/mine  - "My Tasks" view across all boards for the logged-in user
 export const getMyCards = async (req, res) => {
   try {
-    const cards = await Card.find({ assignees: req.user._id, isDeleted: { $ne: true } })
+    const cards = await Card.find({
+      $or: [
+        { assignees: req.user._id },
+        { "checklists.assignees": req.user._id },
+        { "checklists.items.assignees": req.user._id },
+        { "checklist.assignees": req.user._id },
+      ],
+      isDeleted: { $ne: true },
+    })
       .populate("board", "title color")
       .populate("list", "title")
+      .populate("assignees", "name email avatarColor role")
+      .populate("checklists.assignees", "name email avatarColor role")
+      .populate("checklists.items.assignees", "name email avatarColor role")
+      .populate("checklist.assignees", "name email avatarColor role")
       .sort({ dueDate: 1 });
     res.json(cards);
   } catch (err) {
@@ -566,6 +623,9 @@ export const getCards = async (req, res) => {
       .populate("board", "title color archived")
       .populate("list", "title")
       .populate("assignees", "name email avatarColor role")
+      .populate("checklists.assignees", "name email avatarColor role")
+      .populate("checklists.items.assignees", "name email avatarColor role")
+      .populate("checklist.assignees", "name email avatarColor role")
       .sort({ dueDate: 1, order: 1 });
 
     res.json(cards);

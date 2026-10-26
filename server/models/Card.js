@@ -15,10 +15,12 @@ const cardSchema = new mongoose.Schema(
     checklists: [
       {
         title: { type: String, default: "Checklist" },
+        assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
         items: [
           {
             text: { type: String, required: true },
             done: { type: Boolean, default: false },
+            assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
           },
         ],
       },
@@ -28,6 +30,7 @@ const cardSchema = new mongoose.Schema(
       {
         text: { type: String, required: true },
         done: { type: Boolean, default: false },
+        assignees: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
       },
     ],
     attachments: [

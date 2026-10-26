@@ -6,7 +6,10 @@ export const getListsForBoard = async (req, res) => {
   try {
     const lists = await List.find({ board: req.params.boardId, isDeleted: { $ne: true } }).sort({ order: 1 });
     const cards = await Card.find({ board: req.params.boardId, isDeleted: { $ne: true } })
-      .populate("assignees", "name email avatarColor")
+      .populate("assignees", "name email avatarColor role")
+      .populate("checklists.assignees", "name email avatarColor role")
+      .populate("checklists.items.assignees", "name email avatarColor role")
+      .populate("checklist.assignees", "name email avatarColor role")
       .sort({ order: 1 });
 
     const listsWithCards = lists.map((list) => ({

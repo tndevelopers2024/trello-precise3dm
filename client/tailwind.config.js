@@ -6,6 +6,10 @@ export default {
       screens: {
         xs: "360px",
       },
+      spacing: {
+        4.5: "1.125rem", // 18px
+        5.5: "1.375rem", // 22px
+      },
       backgroundColor: {
         base: "#FAF8F5",
       },

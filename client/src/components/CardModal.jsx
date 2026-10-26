@@ -218,6 +218,61 @@ export default function CardModal({
   const [editingItemText, setEditingItemText] = useState("");
   const [newItemInputs, setNewItemInputs] = useState({});
   const [memberSearchModal, setMemberSearchModal] = useState("");
+  const [newChecklistAssignees, setNewChecklistAssignees] = useState([]);
+  const [activeItemMemberPopover, setActiveItemMemberPopover] = useState(null);
+  const [itemMemberSearch, setItemMemberSearch] = useState("");
+  const [itemPopoverPlacement, setItemPopoverPlacement] = useState("bottom");
+  const [activeChecklistMemberPopover, setActiveChecklistMemberPopover] = useState(null);
+  const [checklistMemberSearch, setChecklistMemberSearch] = useState("");
+  const [checklistPopoverPlacement, setChecklistPopoverPlacement] = useState("bottom");
+  const [modalBoardMembers, setModalBoardMembers] = useState(boardMembers || []);
+
+  const handleOpenItemPopover = (itemKey, e) => {
+    if (activeItemMemberPopover === itemKey) {
+      setActiveItemMemberPopover(null);
+      return;
+    }
+    if (e && e.currentTarget) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setItemPopoverPlacement(spaceBelow < 280 ? "top" : "bottom");
+    }
+    setActiveItemMemberPopover(itemKey);
+    setItemMemberSearch("");
+    setActiveChecklistMemberPopover(null);
+  };
+
+  const handleOpenChecklistPopover = (clKey, e) => {
+    if (activeChecklistMemberPopover === clKey) {
+      setActiveChecklistMemberPopover(null);
+      return;
+    }
+    if (e && e.currentTarget) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      setChecklistPopoverPlacement(spaceBelow < 280 ? "top" : "bottom");
+    }
+    setActiveChecklistMemberPopover(clKey);
+    setChecklistMemberSearch("");
+    setActiveItemMemberPopover(null);
+  };
+
+  useEffect(() => {
+    if (boardMembers && boardMembers.length > 0) {
+      setModalBoardMembers(boardMembers);
+    }
+  }, [boardMembers]);
+
+  useEffect(() => {
+    const bId = boardId || (card?.board && (card.board._id || card.board));
+    if ((!modalBoardMembers || modalBoardMembers.length === 0) && bId) {
+      api.get(`/boards/${bId}`).then((res) => {
+        if (res.data?.members) {
+          setModalBoardMembers(res.data.members);
+        }
+      }).catch(() => {});
+    }
+  }, [boardId, card?.board, modalBoardMembers?.length]);
 
   // Attachment rename state
   const [editingAttachmentId, setEditingAttachmentId] = useState(null);
@@ -269,12 +324,24 @@ export default function CardModal({
       if (activePopover && !e.target.closest("[data-card-popover]")) {
         setActivePopover(null);
       }
+      if (activeItemMemberPopover && !e.target.closest("[data-item-popover]")) {
+        setActiveItemMemberPopover(null);
+      }
+      if (activeChecklistMemberPopover && !e.target.closest("[data-cl-popover]")) {
+        setActiveChecklistMemberPopover(null);
+      }
     };
 
     const handleKeyDown = (e) => {
       if (e.key === "Escape") {
         if (confirmState.isOpen) return;
-        if (activePopover) {
+        if (activeItemMemberPopover) {
+          e.stopPropagation();
+          setActiveItemMemberPopover(null);
+        } else if (activeChecklistMemberPopover) {
+          e.stopPropagation();
+          setActiveChecklistMemberPopover(null);
+        } else if (activePopover) {
           e.stopPropagation();
           setActivePopover(null);
         } else if (onClose) {
@@ -292,7 +359,7 @@ export default function CardModal({
       document.removeEventListener("touchstart", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activePopover, confirmState.isOpen, onClose]);
+  }, [activePopover, activeItemMemberPopover, activeChecklistMemberPopover, confirmState.isOpen, onClose]);
 
   const save = async (patch) => {
     const previousCard = card;
@@ -303,11 +370,21 @@ export default function CardModal({
           const isClIdValid = cl._id && /^[0-9a-fA-F]{24}$/.test(String(cl._id));
           const cleanCl = {
             title: cl.title || "Checklist",
+            assignees: Array.isArray(cl.assignees)
+              ? cl.assignees
+                  .map((a) => (a && typeof a === "object" ? a._id || a : a))
+                  .filter(Boolean)
+              : [],
             items: (cl.items || []).map((item) => {
               const isItemIdValid = item._id && /^[0-9a-fA-F]{24}$/.test(String(item._id));
               const cleanItem = {
                 text: item.text,
                 done: Boolean(item.done),
+                assignees: Array.isArray(item.assignees)
+                  ? item.assignees
+                      .map((a) => (a && typeof a === "object" ? a._id || a : a))
+                      .filter(Boolean)
+                  : [],
               };
               if (isItemIdValid) cleanItem._id = item._id;
               return cleanItem;
@@ -460,11 +537,13 @@ export default function CardModal({
         ...currentChecklists,
         {
           title,
+          assignees: newChecklistAssignees,
           items: [],
         },
       ];
       await save({ checklists: updated });
       setNewChecklistTitle("");
+      setNewChecklistAssignees([]);
       setActivePopover(null);
       toast.success(`Checklist "${title}" created`, { title: "Success" });
     } catch (err) {
@@ -583,6 +662,83 @@ export default function CardModal({
     setEditingItemKey(null);
     setEditingItemText("");
     toast.success("Checklist item updated");
+  };
+
+  const toggleChecklistItemAssignee = (checklistId, clIndex, itemIndex, userId) => {
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = currentChecklists.map((cl, idx) => {
+      const match = (cl._id && String(cl._id) === String(checklistId)) || idx === clIndex;
+      if (match) {
+        const nextItems = [...(cl.items || [])];
+        const currentItem = nextItems[itemIndex];
+        if (!currentItem) return cl;
+
+        const currentAssignees = Array.isArray(currentItem.assignees) ? currentItem.assignees : [];
+        const isAssigned = currentAssignees.some(
+          (a) => (a && (a._id ? a._id.toString() : String(a))) === userId.toString()
+        );
+
+        let nextAssignees;
+        if (isAssigned) {
+          nextAssignees = currentAssignees.filter(
+            (a) => (a && (a._id ? a._id.toString() : String(a))) !== userId.toString()
+          );
+        } else {
+          const effectiveMembers = modalBoardMembers.length > 0 ? modalBoardMembers : boardMembers;
+          const found = (effectiveMembers || []).find(
+            (m) =>
+              m?.user &&
+              (m.user._id?.toString() === userId.toString() || m.user.toString() === userId.toString())
+          );
+          const memberObj = found?.user || { _id: userId };
+          nextAssignees = [...currentAssignees, memberObj];
+        }
+
+        nextItems[itemIndex] = {
+          ...currentItem,
+          assignees: nextAssignees,
+        };
+        return { ...cl, items: nextItems };
+      }
+      return cl;
+    });
+    save({ checklists: updated });
+  };
+
+  const toggleChecklistAssignee = (checklistId, clIndex, userId) => {
+    const currentChecklists = getNormalizedChecklists(card);
+    const updated = currentChecklists.map((cl, idx) => {
+      const match = (cl._id && String(cl._id) === String(checklistId)) || idx === clIndex;
+      if (match) {
+        const currentAssignees = Array.isArray(cl.assignees) ? cl.assignees : [];
+        const isAssigned = currentAssignees.some(
+          (a) => (a && (a._id ? a._id.toString() : String(a))) === userId.toString()
+        );
+
+        let nextAssignees;
+        if (isAssigned) {
+          nextAssignees = currentAssignees.filter(
+            (a) => (a && (a._id ? a._id.toString() : String(a))) !== userId.toString()
+          );
+        } else {
+          const effectiveMembers = modalBoardMembers.length > 0 ? modalBoardMembers : boardMembers;
+          const found = (effectiveMembers || []).find(
+            (m) =>
+              m?.user &&
+              (m.user._id?.toString() === userId.toString() || m.user.toString() === userId.toString())
+          );
+          const memberObj = found?.user || { _id: userId };
+          nextAssignees = [...currentAssignees, memberObj];
+        }
+
+        return {
+          ...cl,
+          assignees: nextAssignees,
+        };
+      }
+      return cl;
+    });
+    save({ checklists: updated });
   };
 
   // Attachments actions
@@ -943,7 +1099,7 @@ export default function CardModal({
         {/* 2-Column Responsive Body */}
         <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-hidden min-h-0">
           {/* ================= LEFT COLUMN: CARD DETAILS (~60%) ================= */}
-          <div className="lg:col-span-7 flex flex-col overflow-y-auto scrollbar-hide p-5 sm:p-6 space-y-6 border-b lg:border-b-0 lg:border-r border-line">
+          <div className="lg:col-span-7 flex flex-col overflow-y-auto scrollbar-hide p-5 sm:p-6 pb-28 space-y-6 border-b lg:border-b-0 lg:border-r border-line">
             {/* Title Bar with Circular Checkbox */}
             <div className="flex items-start gap-3">
               <button
@@ -1041,6 +1197,7 @@ export default function CardModal({
                       setActivePopover(null);
                     } else {
                       setNewChecklistTitle("");
+                      setNewChecklistAssignees([]);
                       setActivePopover("checklist");
                     }
                   }}
@@ -1059,6 +1216,7 @@ export default function CardModal({
                         onClick={() => {
                           setActivePopover(null);
                           setNewChecklistTitle("");
+                          setNewChecklistAssignees([]);
                         }}
                         className="w-6 h-6 rounded-md flex items-center justify-center text-muted hover:text-ink hover:bg-surface-2 transition-colors cursor-pointer"
                       >
@@ -1078,12 +1236,65 @@ export default function CardModal({
                           className={`${fieldClass} py-1.5 text-xs sm:text-sm`}
                         />
                       </div>
+
+                      {/* Member options to assign checklist to */}
+                      <div>
+                        <label className="block text-[11px] text-muted mb-1 font-medium">
+                          Assign members (optional)
+                        </label>
+                        <div className="max-h-36 overflow-y-auto space-y-1 p-1 bg-surface-2/40 border border-line/60 rounded-xl scrollbar-hide">
+                          {(() => {
+                            const effectiveMembers = modalBoardMembers.length > 0 ? modalBoardMembers : boardMembers;
+                            const validMembers = (effectiveMembers || []).filter((m) => m && m.user);
+                            if (validMembers.length === 0) {
+                              return (
+                                <p className="text-xs text-muted/60 p-2 text-center">No board members</p>
+                              );
+                            }
+                            return validMembers.map((m) => {
+                              const memberId = m.user._id ? m.user._id.toString() : String(m.user);
+                              const isSelected = newChecklistAssignees.includes(memberId);
+                              return (
+                                <button
+                                  key={memberId}
+                                  type="button"
+                                  onClick={() => {
+                                    setNewChecklistAssignees((prev) =>
+                                      prev.includes(memberId)
+                                        ? prev.filter((id) => id !== memberId)
+                                        : [...prev, memberId]
+                                    );
+                                  }}
+                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                                    isSelected
+                                      ? "bg-accent/15 text-accent font-medium"
+                                      : "text-ink hover:bg-surface-2"
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2 truncate">
+                                    <span
+                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-xs"
+                                      style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
+                                    >
+                                      {(m.user.name?.[0] || "U").toUpperCase()}
+                                    </span>
+                                    <span className="truncate">{m.user.name || "Member"}</span>
+                                  </div>
+                                  {isSelected && <Check size={13} className="text-accent font-bold" />}
+                                </button>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-end gap-2 pt-1 border-t border-line/60">
                         <button
                           type="button"
                           onClick={() => {
                             setActivePopover(null);
                             setNewChecklistTitle("");
+                            setNewChecklistAssignees([]);
                           }}
                           className="px-3 py-1.5 text-xs text-muted hover:text-ink transition-colors cursor-pointer font-medium"
                         >
@@ -2306,14 +2517,152 @@ export default function CardModal({
                           )}
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => confirmDeleteChecklist(cl._id, clIndex, cl.title)}
-                          className="text-xs text-muted hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-rose-100 transition-all cursor-pointer font-medium shrink-0 flex items-center gap-1"
-                        >
-                          <Trash2 size={13} className="shrink-0" />
-                          <span>Delete</span>
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {/* Checklist-level Assigned Member Avatars */}
+                          {Array.isArray(cl.assignees) && cl.assignees.length > 0 && (
+                            <div className="flex -space-x-1.5 items-center">
+                              {cl.assignees.map((assignee, aIdx) => {
+                                const mId = assignee?._id ? assignee._id.toString() : String(assignee);
+                                const effectiveMembers = modalBoardMembers.length > 0 ? modalBoardMembers : boardMembers;
+                                const memberInfo =
+                                  (effectiveMembers || []).find(
+                                    (bm) => bm?.user && (bm.user._id?.toString() === mId || bm.user.toString() === mId)
+                                  )?.user || (typeof assignee === "object" ? assignee : null);
+                                const displayName = memberInfo?.name || "Member";
+                                const color = memberInfo?.avatarColor || "#0C66E4";
+                                const initial = (displayName[0] || "M").toUpperCase();
+
+                                return (
+                                  <span
+                                    key={mId || `cl-assignee-${aIdx}`}
+                                    title={`Checklist assigned: ${displayName}`}
+                                    className="w-6 h-6 min-w-[24px] min-h-[24px] rounded-full flex items-center justify-center text-[11px] leading-none text-white font-bold ring-2 ring-white shrink-0 shadow-xs cursor-pointer hover:scale-110 transition-transform select-none"
+                                    style={{ backgroundColor: color }}
+                                    onClick={(e) => handleOpenChecklistPopover(clKey, e)}
+                                  >
+                                    {initial}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Checklist-level Member Assignment Button & Popover */}
+                          <div className="relative" data-cl-popover="true">
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenChecklistPopover(clKey, e)}
+                              title="Assign checklist members"
+                              aria-label="Assign checklist members"
+                              className={`text-xs px-2.5 py-1.5 rounded-lg border transition-all cursor-pointer font-medium flex items-center gap-1.5 ${
+                                activeChecklistMemberPopover === clKey
+                                  ? "bg-accent/15 border-accent text-accent"
+                                  : "text-muted hover:text-ink bg-surface-2/60 hover:bg-surface-2 border-line"
+                              }`}
+                            >
+                              <Users size={13} className="shrink-0" />
+                              <span className="hidden sm:inline">Assign</span>
+                            </button>
+
+                            {activeChecklistMemberPopover === clKey && (
+                              <div
+                                className={`absolute right-0 ${
+                                  checklistPopoverPlacement === "top" ? "bottom-full mb-2" : "top-full mt-2"
+                                } w-60 sm:w-64 max-w-[calc(100vw-2rem)] bg-surface border border-line rounded-xl shadow-pop p-2.5 z-50 text-left animate-in fade-in-50 zoom-in-95`}
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <div className="flex items-center justify-between pb-1 mb-1.5 border-b border-line/60">
+                                  <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                                    Assign checklist
+                                  </p>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveChecklistMemberPopover(null)}
+                                    className="text-muted hover:text-ink p-0.5 rounded cursor-pointer"
+                                    aria-label="Close"
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                </div>
+
+                                <div className="relative mb-2">
+                                  <Search size={12} className="absolute left-2 top-2 text-muted" />
+                                  <input
+                                    type="text"
+                                    autoFocus
+                                    placeholder="Search members…"
+                                    value={checklistMemberSearch}
+                                    onChange={(e) => setChecklistMemberSearch(e.target.value)}
+                                    className="w-full pl-6 pr-2 py-1 text-xs bg-surface-2 border border-line rounded-lg text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-accent"
+                                  />
+                                </div>
+
+                                <div className="max-h-48 overflow-y-auto scrollbar-hide space-y-1">
+                                  {(() => {
+                                    const effectiveMembers = modalBoardMembers.length > 0 ? modalBoardMembers : boardMembers;
+                                    const validMembers = (effectiveMembers || [])
+                                      .filter((m) => m && m.user)
+                                      .filter((m) => {
+                                        if (!checklistMemberSearch.trim()) return true;
+                                        const q = checklistMemberSearch.toLowerCase();
+                                        return (
+                                          m.user.name?.toLowerCase().includes(q) ||
+                                          m.user.email?.toLowerCase().includes(q)
+                                        );
+                                      });
+
+                                    if (validMembers.length === 0) {
+                                      return (
+                                        <p className="text-xs text-muted/60 px-2 py-1 text-center">
+                                          No board members
+                                        </p>
+                                      );
+                                    }
+
+                                    return validMembers.map((m) => {
+                                      const memberId = m.user._id ? m.user._id.toString() : String(m.user);
+                                      const isAssigned = (cl.assignees || []).some(
+                                        (a) => (a && (a._id ? a._id.toString() : String(a))) === memberId
+                                      );
+                                      return (
+                                        <button
+                                          key={memberId}
+                                          type="button"
+                                          onClick={() => toggleChecklistAssignee(cl._id, clIndex, memberId)}
+                                          className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                                            isAssigned
+                                              ? "bg-accent/15 text-accent font-medium"
+                                              : "text-ink hover:bg-surface-2"
+                                          }`}
+                                        >
+                                          <div className="flex items-center gap-2 truncate">
+                                            <span
+                                              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
+                                              style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
+                                            >
+                                              {(m.user.name?.[0] || "U").toUpperCase()}
+                                            </span>
+                                            <span className="truncate">{m.user.name || "Member"}</span>
+                                          </div>
+                                          {isAssigned && <Check size={13} className="text-accent font-bold" />}
+                                        </button>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => confirmDeleteChecklist(cl._id, clIndex, cl.title)}
+                            className="text-xs text-muted hover:text-rose-600 hover:bg-rose-50 px-2.5 py-1.5 rounded-lg border border-transparent hover:border-rose-100 transition-all cursor-pointer font-medium shrink-0 flex items-center gap-1"
+                          >
+                            <Trash2 size={13} className="shrink-0" />
+                            <span>Delete</span>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Visibly filled progress bar */}
@@ -2397,7 +2746,7 @@ export default function CardModal({
                                   type="button"
                                   onClick={() => toggleChecklistItem(cl._id, clIndex, itemIdx)}
                                   aria-label={item.done ? "Mark item incomplete" : "Mark item complete"}
-                                  className={`w-4.5 h-4.5 rounded-md border flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation ${
+                                  className={`w-5 h-5 min-w-[20px] min-h-[20px] rounded-md border flex items-center justify-center transition-all shrink-0 cursor-pointer touch-manipulation ${
                                     item.done
                                       ? "bg-emerald-500 border-emerald-500 text-white shadow-xs"
                                       : "border-stone-300 bg-white hover:border-emerald-500 hover:bg-emerald-50/50"
@@ -2418,24 +2767,163 @@ export default function CardModal({
                                   {item.text}
                                 </span>
 
-                                {/* Action buttons: Edit and Delete */}
-                                <div className="flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-opacity shrink-0">
+                                {/* Assigned Members and Action buttons */}
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  {/* Assigned Member Avatars */}
+                                  {Array.isArray(item.assignees) && item.assignees.length > 0 && (
+                                    <div className="flex -space-x-1.5 items-center">
+                                      {item.assignees.map((assignee, aIdx) => {
+                                        const mId = assignee?._id ? assignee._id.toString() : String(assignee);
+                                        const effectiveMembers = modalBoardMembers.length > 0 ? modalBoardMembers : boardMembers;
+                                        const memberInfo =
+                                          (effectiveMembers || []).find(
+                                            (bm) => bm?.user && (bm.user._id?.toString() === mId || bm.user.toString() === mId)
+                                          )?.user || (typeof assignee === "object" ? assignee : null);
+                                        const displayName = memberInfo?.name || "Member";
+                                        const color = memberInfo?.avatarColor || "#0C66E4";
+                                        const initial = (displayName[0] || "M").toUpperCase();
+
+                                        return (
+                                          <span
+                                            key={mId || `assignee-${aIdx}`}
+                                            title={displayName}
+                                            className="w-6 h-6 min-w-[24px] min-h-[24px] rounded-full flex items-center justify-center text-[11px] leading-none text-white font-bold ring-2 ring-white shrink-0 shadow-xs cursor-pointer hover:scale-110 transition-transform select-none"
+                                            style={{ backgroundColor: color }}
+                                            onClick={(e) => handleOpenItemPopover(itemKey, e)}
+                                          >
+                                            {initial}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
+
+                                  {/* Member Assignment Button & Popover */}
+                                  <div className="relative" data-item-popover="true">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => handleOpenItemPopover(itemKey, e)}
+                                      title="Assign members"
+                                      aria-label="Assign members"
+                                      className={`p-1 rounded-md transition-all cursor-pointer touch-manipulation ${
+                                        activeItemMemberPopover === itemKey
+                                          ? "bg-accent/15 text-accent opacity-100"
+                                          : "text-muted/60 hover:text-accent hover:bg-surface-2 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100"
+                                      }`}
+                                    >
+                                      <Users size={13} />
+                                    </button>
+
+                                    {activeItemMemberPopover === itemKey && (
+                                      <div
+                                        className={`absolute right-0 ${
+                                          itemPopoverPlacement === "top" ? "bottom-full mb-2" : "top-full mt-2"
+                                        } w-60 sm:w-64 max-w-[calc(100vw-2rem)] bg-surface border border-line rounded-xl shadow-pop p-2.5 z-50 text-left animate-in fade-in-50 zoom-in-95`}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <div className="flex items-center justify-between pb-1 mb-1.5 border-b border-line/60">
+                                          <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+                                            Assign members
+                                          </p>
+                                          <button
+                                            type="button"
+                                            onClick={() => setActiveItemMemberPopover(null)}
+                                            className="text-muted hover:text-ink p-0.5 rounded cursor-pointer"
+                                            aria-label="Close"
+                                          >
+                                            <X size={13} />
+                                          </button>
+                                        </div>
+
+                                        <div className="relative mb-2">
+                                          <Search size={12} className="absolute left-2 top-2 text-muted" />
+                                          <input
+                                            type="text"
+                                            autoFocus
+                                            placeholder="Search members…"
+                                            value={itemMemberSearch}
+                                            onChange={(e) => setItemMemberSearch(e.target.value)}
+                                            className="w-full pl-6 pr-2 py-1 text-xs bg-surface-2 border border-line rounded-lg text-ink placeholder:text-muted/60 focus:outline-none focus:ring-1 focus:ring-accent"
+                                          />
+                                        </div>
+
+                                        <div className="max-h-48 overflow-y-auto scrollbar-hide space-y-1">
+                                          {(() => {
+                                            const effectiveMembers = modalBoardMembers.length > 0 ? modalBoardMembers : boardMembers;
+                                            const validMembers = (effectiveMembers || [])
+                                              .filter((m) => m && m.user)
+                                              .filter((m) => {
+                                                if (!itemMemberSearch.trim()) return true;
+                                                const q = itemMemberSearch.toLowerCase();
+                                                return (
+                                                  m.user.name?.toLowerCase().includes(q) ||
+                                                  m.user.email?.toLowerCase().includes(q)
+                                                );
+                                              });
+
+                                            if (validMembers.length === 0) {
+                                              return (
+                                                <p className="text-xs text-muted/60 px-2 py-1 text-center">
+                                                  No board members
+                                                </p>
+                                              );
+                                            }
+
+                                            return validMembers.map((m) => {
+                                              const memberId = m.user._id ? m.user._id.toString() : String(m.user);
+                                              const isAssigned = (item.assignees || []).some(
+                                                (a) => (a && (a._id ? a._id.toString() : String(a))) === memberId
+                                              );
+                                              return (
+                                                <button
+                                                  key={memberId}
+                                                  type="button"
+                                                  onClick={() =>
+                                                    toggleChecklistItemAssignee(cl._id, clIndex, itemIdx, memberId)
+                                                  }
+                                                  className={`w-full flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors cursor-pointer ${
+                                                    isAssigned
+                                                      ? "bg-accent/15 text-accent font-medium"
+                                                      : "text-ink hover:bg-surface-2"
+                                                  }`}
+                                                >
+                                                  <div className="flex items-center gap-2 truncate">
+                                                    <span
+                                                      className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] text-white font-semibold shrink-0 shadow-sm"
+                                                      style={{ backgroundColor: m.user.avatarColor || "#0C66E4" }}
+                                                    >
+                                                      {(m.user.name?.[0] || "U").toUpperCase()}
+                                                    </span>
+                                                    <span className="truncate">{m.user.name || "Member"}</span>
+                                                  </div>
+                                                  {isAssigned && <Check size={13} className="text-accent font-bold" />}
+                                                </button>
+                                              );
+                                            });
+                                          })()}
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Edit button */}
                                   <button
                                     type="button"
                                     onClick={() => handleStartEditChecklistItem(itemKey, item.text)}
                                     title="Edit item"
                                     aria-label="Edit item"
-                                    className="text-muted/60 hover:text-accent p-1 rounded-md hover:bg-surface-2 transition-all cursor-pointer touch-manipulation"
+                                    className="text-muted/60 hover:text-accent p-1 rounded-md hover:bg-surface-2 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-all cursor-pointer touch-manipulation"
                                   >
                                     <Pencil size={12} />
                                   </button>
 
+                                  {/* Delete button */}
                                   <button
                                     type="button"
                                     onClick={() => deleteChecklistItem(cl._id, clIndex, itemIdx)}
                                     title="Delete item"
                                     aria-label="Delete item"
-                                    className="text-muted/60 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 transition-all cursor-pointer touch-manipulation"
+                                    className="text-muted/60 hover:text-rose-600 p-1 rounded-md hover:bg-rose-50 opacity-100 sm:opacity-0 sm:group-hover/item:opacity-100 transition-all cursor-pointer touch-manipulation"
                                   >
                                     <Trash2 size={13} />
                                   </button>
